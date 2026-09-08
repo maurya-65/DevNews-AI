@@ -73,8 +73,9 @@ def load_prompt(prefs: dict) -> str:
     in the DB, so tuning taste never means editing a prompt (the same reasoning as
     rule 3 for weights).
     """
-    return PROMPT_PATH.read_text(encoding="utf-8").replace(
-        "{{READER}}", profile.render(prefs))
+    return (PROMPT_PATH.read_text(encoding="utf-8")
+            .replace("{{READER}}", profile.render(prefs))
+            .replace("{{NOVELTY}}", profile.novelty_rule(prefs)))
 
 
 def build_user_block(candidates: list[dict]) -> str:
@@ -97,10 +98,10 @@ def build_user_block(candidates: list[dict]) -> str:
             f"verdicts.\n\n" + "\n\n---\n\n".join(parts))
 
 
-def score(verdict_item: dict) -> float:
+def score(verdict_item: dict, weights: dict | None = None) -> float:
     """Weighted sum, computed in code (rule 2). Clamped — the model can return anything."""
     total = 0.0
-    for key, weight in WEIGHTS.items():
+    for key, weight in (weights or WEIGHTS).items():
         try:
             value = float(verdict_item.get(key) or 0)
         except (TypeError, ValueError):
@@ -121,6 +122,7 @@ def select(run_id: int, *, provider_name: str | None = None,
         count = prefs.get("select_count") or SELECT_COUNT
     count = max(1, min(count, len(candidates)))
     min_score = float(prefs.get("min_score", MIN_SCORE))
+    weights = profile.weights(prefs)
 
     system = load_prompt(prefs)
     user = build_user_block(candidates)
@@ -133,8 +135,9 @@ def select(run_id: int, *, provider_name: str | None = None,
         print(user)
         return 0
 
-    print(f"{get_provider(provider_name).name} — {len(candidates)} candidates",
-          file=sys.stderr)
+    print(f"{get_provider(provider_name).name} — {len(candidates)} candidates, "
+          f"level={prefs.get('level')}, weights="
+          + "/".join(f"{v:g}" for v in weights.values()), file=sys.stderr)
 
     verdict, fallback_note = call_with_fallback(
         system, user, verdict_schema(), provider_name)
@@ -155,7 +158,7 @@ def select(run_id: int, *, provider_name: str | None = None,
         v = by_id.get(c["id"])
         if not v:
             continue
-        scored.append({**c, "_v": v, "_score": score(v)})
+        scored.append({**c, "_v": v, "_score": score(v, weights)})
     scored.sort(key=lambda r: r["_score"], reverse=True)
 
     # select_count is a ceiling and min_score is the bar. Both must hold, so a thin day

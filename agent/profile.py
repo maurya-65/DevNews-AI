@@ -29,6 +29,29 @@ AVOID = {
     "listicles": "listicles, 'top N tools' roundups, and beginner tutorials",
 }
 
+# Weights per level. "depth" rewards substance behind the headline, which for a reader
+# still building up actively fights them — so it is dialled down rather than removed.
+# Weights stay in code, never in the prompt (rule 3).
+WEIGHTS = {
+    "working": {"novel": 0.4, "consequential": 0.4, "depth": 0.2},
+    "deep": {"novel": 0.3, "consequential": 0.3, "depth": 0.4},
+    "learning": {"novel": 0.45, "consequential": 0.45, "depth": 0.1},
+}
+
+# How "novel" is judged. The default definition punishes explainers of known topics —
+# exactly what a learning reader needs most — so that reader gets a different rule.
+NOVELTY = {
+    "working": "Is this genuinely new information, or a restatement of something the "
+               "reader almost certainly already knows? A well-written explainer of a "
+               "well-known topic scores low here even if it is excellent.",
+    "deep": "Is this new to someone who follows the field closely? Incremental work "
+            "scores low. A result that changes what is known scores high.",
+    "learning": "Is this new *to this reader*, not to the field? A clear explainer of an "
+                "established topic they have not met yet is genuinely novel to them and "
+                "should score well. Score low only for things they would already have "
+                "seen, or that assume knowledge they do not have yet.",
+}
+
 LEVELS = {
     "working": "A working engineer. Assume jargon; do not explain fundamentals. "
                "Lead with trade-offs and numbers.",
@@ -37,6 +60,14 @@ LEVELS = {
     "learning": "Still building depth in these areas. Give enough context to make an "
                 "unfamiliar topic followable, without padding.",
 }
+
+
+def weights(prefs: dict) -> dict:
+    return WEIGHTS.get(prefs.get("level"), WEIGHTS["working"])
+
+
+def novelty_rule(prefs: dict) -> str:
+    return NOVELTY.get(prefs.get("level"), NOVELTY["working"])
 
 
 def render(prefs: dict) -> str:

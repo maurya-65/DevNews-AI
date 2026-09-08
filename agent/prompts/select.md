@@ -21,10 +21,7 @@ Three independent scores, 0-10 each. Use the whole range — if everything lands
 between 5 and 7 you are not discriminating, and a flat distribution is useless to the
 ranking code.
 
-**novel** — Is this genuinely new information, or a restatement of something the reader
-almost certainly already knows? A well-written explainer of a well-known topic scores
-low here even if it is excellent. Rediscovery scores low. "X released version N" scores
-low unless N changes something.
+**novel** — {{NOVELTY}} "X released version N" scores low unless N changes something.
 
 **consequential** — Does this change what someone builds, chooses, or believes? A subtle
 bug in a widely used database is highly consequential. A beautiful essay that changes no
