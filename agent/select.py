@@ -14,14 +14,14 @@ import sys
 import time
 from pathlib import Path
 
-from agent import store
-from agent.llm import DEFAULT, get_provider, verdict_schema
+from agent import profile, store
+from agent.llm import get_provider, verdict_schema
 
 PROMPT_PATH = Path(__file__).parent / "prompts" / "select.md"
 
 # Rule 3: weights live here, never in the prompt. Tuning must not mean editing prose.
 WEIGHTS = {"novel": 0.4, "consequential": 0.4, "depth": 0.2}
-SELECT_COUNT = 8
+SELECT_COUNT = 8  # fallback; the stored preference wins when there is one
 
 RETRY_DELAY = 20  # seconds; free-tier 503s are transient overload, not a hard failure
 
@@ -65,8 +65,15 @@ def call_with_fallback(system: str, user: str, schema: dict,
     raise RuntimeError(f"all providers failed; last: {last_exc}") from last_exc
 
 
-def load_prompt() -> str:
-    return PROMPT_PATH.read_text(encoding="utf-8")
+def load_prompt(prefs: dict) -> str:
+    """The prompt with the reader description substituted in.
+
+    The profile is data, not prose in a file: it is edited in the settings UI and stored
+    in the DB, so tuning taste never means editing a prompt (the same reasoning as
+    rule 3 for weights).
+    """
+    return PROMPT_PATH.read_text(encoding="utf-8").replace(
+        "{{READER}}", profile.render(prefs))
 
 
 def build_user_block(candidates: list[dict]) -> str:
@@ -102,13 +109,18 @@ def score(verdict_item: dict) -> float:
 
 
 def select(run_id: int, *, provider_name: str | None = None,
-           dry_run: bool = False, count: int = SELECT_COUNT) -> int:
+           dry_run: bool = False, count: int | None = None) -> int:
     candidates = store.get_candidates(run_id)
     if not candidates:
         print(f"run {run_id} has no candidates", file=sys.stderr)
         return 1
 
-    system = load_prompt()
+    prefs = store.get_preferences()
+    if count is None:
+        count = prefs.get("select_count") or SELECT_COUNT
+    count = max(1, min(count, len(candidates)))
+
+    system = load_prompt(prefs)
     user = build_user_block(candidates)
 
     if dry_run:
@@ -190,7 +202,8 @@ def main() -> None:
                    help="override LLM_PROVIDER")
     p.add_argument("--dry-run", action="store_true",
                    help="print the prompt instead of calling the API")
-    p.add_argument("--count", type=int, default=SELECT_COUNT)
+    p.add_argument("--count", type=int, default=None,
+                   help="override the stored select_count")
     args = p.parse_args()
     raise SystemExit(select(args.run_id, provider_name=args.provider,
                             dry_run=args.dry_run, count=args.count))

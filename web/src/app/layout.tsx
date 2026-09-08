@@ -15,9 +15,14 @@ export const metadata: Metadata = {
 };
 
 const NAV = [
-  { href: "/", label: "Digest" },
-  { href: "/debug", label: "Debug" },
+  { href: "/", label: "Today" },
+  { href: "/archive", label: "Archive" },
+  { href: "/settings", label: "Settings" },
 ];
+
+// Debug is a tuning tool, not a reader page: it exposes rejected items, raw scores and
+// token counts. Off unless SHOW_DEBUG is set, and never in the nav.
+const SHOW_DEBUG = process.env.SHOW_DEBUG === "1";
 
 export default function RootLayout({
   children,
@@ -48,6 +53,14 @@ export default function RootLayout({
                     {label}
                   </Link>
                 ))}
+                {SHOW_DEBUG && (
+                  <Link
+                    href="/debug"
+                    className="rounded-md px-3 py-1.5 text-sm text-muted-foreground/50 transition-colors hover:bg-accent hover:text-accent-foreground"
+                  >
+                    Debug
+                  </Link>
+                )}
               </nav>
             </div>
           </header>

@@ -13,24 +13,7 @@ You do **not** decide how many items are kept. You score; code ranks and cuts. N
 
 ## The reader
 
-<!-- ───────────────────────────────────────────────────────────────────────────
-     PLACEHOLDER PROFILE — replace this block with the real one.
-
-     This is deliberately generic and will produce generic "popular tech news"
-     selection, which is the exact failure PRODUCT_VISION.md warns about.
-     Nothing else in the pipeline needs to change when you rewrite it.
-     ─────────────────────────────────────────────────────────────────────────── -->
-
-A working software engineer. Comfortable reading code and system design writeups.
-Interested in how things actually work: distributed systems, databases, compilers,
-performance, infrastructure, security, and the engineering behind ML systems.
-
-Bored by: funding rounds, acquisitions, executive moves, crypto, framework popularity
-contests, listicles, and product launches that are announcements rather than engineering.
-
-Prefers one substantial deep dive over five shallow updates.
-
-<!-- ─────────────────────────────── end placeholder ──────────────────────────── -->
+{{READER}}
 
 ## Scoring
 

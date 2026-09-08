@@ -6,6 +6,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { notFound } from "next/navigation";
 import { Empty } from "@/components/empty";
 import {
   formatRan,
@@ -47,6 +48,10 @@ function SubScores({ item }: { item: Item }) {
 }
 
 export default async function Debug() {
+  // Tuning tool, not a reader page. Token counts and rejected items are not something a
+  // visitor should land on, so the route 404s unless it is explicitly switched on.
+  if (process.env.SHOW_DEBUG !== "1") notFound();
+
   const run = await latestRun();
 
   if (!run) {

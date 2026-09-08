@@ -17,7 +17,8 @@ def run() -> int:
     print(f"run {run_id} started", file=sys.stderr)
 
     try:
-        items = fetch_mod.fetch()
+        prefs = store.get_preferences()
+        items = fetch_mod.fetch(prefs=prefs)
         if not items:
             store.close_run(run_id, status="failed", error="no items fetched")
             print("no items fetched", file=sys.stderr)

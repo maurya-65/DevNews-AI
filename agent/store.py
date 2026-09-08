@@ -84,3 +84,32 @@ def update_verdicts(run_id: int, updates: list[dict]) -> None:
     for row in updates:
         item_id = row.pop("id")
         client().table("items").update(row).eq("id", item_id).execute()
+
+
+DEFAULT_PREFERENCES = {
+    "profile": None,
+    "topics": [],
+    "avoid": [],
+    "level": "working",
+    "select_count": 8,
+    "hn_quota": 10,
+    "lobsters_quota": 5,
+    "blogs_quota": 5,
+}
+
+
+def get_preferences() -> dict:
+    """The single preferences row, or defaults if the table isn't there yet.
+
+    Never fails the run: a missing table or an empty row means "use the defaults", not
+    "no digest today".
+    """
+    try:
+        rows = client().table("preferences").select("*").eq("id", 1).execute().data
+    except Exception as exc:
+        print(f"  preferences unavailable ({type(exc).__name__}), using defaults")
+        return dict(DEFAULT_PREFERENCES)
+
+    if not rows:
+        return dict(DEFAULT_PREFERENCES)
+    return {**DEFAULT_PREFERENCES, **{k: v for k, v in rows[0].items() if v is not None}}

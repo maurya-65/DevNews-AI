@@ -13,23 +13,28 @@ import sys
 
 from agent.sources import blogs, hackernews, lobsters
 
-# Quotas, not literals — tuning these should never mean editing logic.
+# Defaults. The stored preferences override these per source; a quota of 0 disables one.
 TOTAL = 20
 SOURCES = (
-    ("hn", hackernews.fetch, 10),
-    ("lobsters", lobsters.fetch, 5),
-    ("blog", blogs.fetch, 5),
+    ("hn", hackernews.fetch, 10, "hn_quota"),
+    ("lobsters", lobsters.fetch, 5, "lobsters_quota"),
+    ("blog", blogs.fetch, 5, "blogs_quota"),
 )
 
 
-def fetch(total: int = TOTAL) -> list[dict]:
+def fetch(total: int = TOTAL, prefs: dict | None = None) -> list[dict]:
     """Collect from every source, drop duplicates, trim to `total`.
 
     A source that raises is skipped with a warning. One dead API must not cost us the run
     — that is a day with no digest, and tomorrow's run won't backfill it.
     """
+    prefs = prefs or {}
     collected: list[dict] = []
-    for name, fn, quota in SOURCES:
+    for name, fn, default_quota, pref_key in SOURCES:
+        quota = prefs.get(pref_key, default_quota)
+        if not quota:
+            print(f"  {name:9}  skipped (quota 0)", file=sys.stderr)
+            continue
         try:
             items = fn(quota)
             print(f"  {name:9} {len(items):>2} items", file=sys.stderr)
