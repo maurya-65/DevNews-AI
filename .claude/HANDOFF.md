@@ -55,7 +55,7 @@ Poora detail `BUILDFLOW.md` mein hai. Reasoning `PROGRESS.md` ke decisions log m
 
 | # | Kya | Status |
 |---|---|---|
-| 1 | **Interest profile** — actually kya padhna pasand hai? Languages, topics, kya boring lagta hai | ⬜ **abhi bhi chahiye — Phase 3 ka akela blocker** |
+| 1 | **Interest profile** | ⏸️ **defer kiya (2026-09-08).** User ne kaha baad mein dekhenge. Placeholder `prompts/select.md` mein chal raha hai aur kaam kar raha hai. Isse abstract sawaal poochne se kuch nahi nikla — **asli digest dikha ke poochna**: "ye item kyun aaya / ye kyun nahi aaya". Wahan se profile likhna aasan hoga |
 | 2 | Supabase project | ✅ ho gaya, keys `.env` mein, connection verified |
 | 3 | LLM API key | ⬜ Gemini + Groq, dono free. Anthropic drop ho gaya |
 | 4 | Schema paste (`docs/schema-v0.sql`) | ⬜ Supabase SQL editor mein, ek baar |
