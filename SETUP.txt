@@ -1,0 +1,201 @@
+===============================================================================
+ DevNews-AI - SETUP / INSTALL COMMANDS
+ Windows 11 + PowerShell. Every block below is copy-pastable as-is.
+ Project root: C:\dev\DevNews-AI
+===============================================================================
+
+-------------------------------------------------------------------------------
+ 0. STATUS ON THIS MACHINE  (checked 2026-09-08)
+-------------------------------------------------------------------------------
+ Nothing needs installing. Everything is already here AND already on PATH
+ in the registry:
+
+   Python  3.12.10   C:\Users\maury\AppData\Local\Programs\Python\Python312
+   Node    v24.19.0  C:\Program Files\nodejs
+   npm     11.17.0   C:\Program Files\nodejs
+   gh      2.100.0   C:\Program Files\GitHub CLI
+   git     2.55.0    C:\Program Files\Git\cmd
+
+   .venv exists at C:\dev\DevNews-AI\.venv with all 5 python deps installed
+   and importing cleanly.
+
+ The one live problem: an open terminal that was launched BEFORE those PATH
+ entries existed still carries the old PATH. In such a terminal `python`
+ hits the Microsoft Store stub and `node` / `gh` are "not found".
+
+ => On this machine: run step 1, then step 5 to verify. That is all.
+ => On a fresh machine: skip step 1, run steps 2 -> 6.
+
+-------------------------------------------------------------------------------
+ 1. "COMMAND NOT FOUND" ON THIS MACHINE - THE FIX
+-------------------------------------------------------------------------------
+ Do NOT edit PATH. It is already correct. The terminal is just stale.
+
+   1. Close VS Code / your terminal completely.
+   2. Reopen it.
+   3. Run step 5 below.
+
+ A process only reads PATH when it starts, so a terminal opened before the
+ install never sees it. Reopening is the whole fix.
+
+ If a command is STILL missing after a full restart, check what the registry
+ actually has before changing anything:
+
+[Environment]::GetEnvironmentVariable('Path','User') -split ';'
+[Environment]::GetEnvironmentVariable('Path','Machine') -split ';'
+
+ Only if a folder is genuinely absent from both lists, add it (user scope,
+ skips anything already present, no duplicates):
+
+$add = @(
+  "C:\Users\maury\AppData\Local\Programs\Python\Python312",
+  "C:\Users\maury\AppData\Local\Programs\Python\Python312\Scripts",
+  "C:\Program Files\nodejs",
+  "C:\Program Files\GitHub CLI"
+)
+$key = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey('Environment', $true)
+$old = $key.GetValue('Path', '', 'DoNotExpandEnvironmentNames')
+$mk  = [Microsoft.Win32.Registry]::LocalMachine.OpenSubKey(
+       'SYSTEM\CurrentControlSet\Control\Session Manager\Environment', $false)
+$all = $old + ';' + $mk.GetValue('Path', '', 'DoNotExpandEnvironmentNames'); $mk.Close()
+$parts = @($old -split ';' | Where-Object { $_.TrimEnd('\') -ne '' })
+$seen  = @($all -split ';' | Where-Object { $_.TrimEnd('\') -ne '' })
+$miss = @($add | Where-Object { $p = $_; -not ($seen | Where-Object { $_.TrimEnd('\') -ieq $p }) })
+if ($miss) {
+  $key.SetValue('Path', (($miss + $parts) -join ';'), 'ExpandString')
+  Write-Host "Added: $($miss -join ', ') - reopen the terminal."
+} else { Write-Host "Nothing missing. PATH is fine; reopen the terminal." }
+$key.Close()
+
+ And if `python` opens the Microsoft Store even after a restart:
+ Settings > Apps > Advanced app settings > App execution aliases
+ -> turn OFF "python.exe" and "python3.exe".
+
+ 2. FRESH MACHINE - INSTALL THE TOOLCHAIN  (winget, already on Windows 11)
+-------------------------------------------------------------------------------
+ Run each line. Accept the UAC prompt. Reopen the terminal when done.
+
+winget install --id Python.Python.3.12 -e --source winget
+winget install --id OpenJS.NodeJS.LTS -e --source winget
+winget install --id Git.Git -e --source winget
+winget install --id GitHub.cli -e --source winget
+
+ One-liner version (same thing):
+
+winget install --id Python.Python.3.12 -e ; winget install --id OpenJS.NodeJS.LTS -e ; winget install --id Git.Git -e ; winget install --id GitHub.cli -e
+
+ Why each one:
+   Python 3.12  - the agent (agent/*.py). Pinned to 3.12, matches .venv.
+   Node LTS     - Phase 4 web/ (Next.js). npm ships with it.
+   Git          - version control + pushing to GitHub for the Actions cron.
+   GitHub CLI   - setting repo secrets and triggering the workflow manually.
+
+-------------------------------------------------------------------------------
+ 3. PYTHON DEPENDENCIES  (agent runtime)
+-------------------------------------------------------------------------------
+ From C:\dev\DevNews-AI. Creates .venv if missing and installs requirements.txt.
+
+cd C:\dev\DevNews-AI
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+
+ If Activate.ps1 is blocked by execution policy, run this once:
+
+Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
+
+ What requirements.txt pulls in:
+   google-genai==2.22.0    LLM provider - default (gemini-3.8-flash)
+   groq==1.7.0             LLM provider - alternate, LLM_PROVIDER=groq
+   supabase==2.31.0        Postgres reads/writes
+   httpx==0.28.1           HN + Lobsters HTTP
+   feedparser==6.0.14      RSS blog feeds
+   python-dotenv==1.2.3    loads .env locally
+
+ Without activating (works from any shell):
+
+C:\dev\DevNews-AI\.venv\Scripts\pip.exe install -r C:\dev\DevNews-AI\requirements.txt
+
+-------------------------------------------------------------------------------
+ 4. WEB DEPENDENCIES  (Phase 4 only - do NOT run this yet)
+-------------------------------------------------------------------------------
+ Creates web/ and installs the Supabase client. Run from the project root.
+
+cd C:\dev\DevNews-AI
+npx create-next-app@latest web --typescript --app --tailwind --eslint --src-dir --import-alias "@/*" --no-turbopack --use-npm
+cd web
+npm install @supabase/supabase-js
+
+ If create-next-app rejects one of those flags (they change between versions),
+ just run it interactively and answer the prompts:
+
+npx create-next-app@latest web
+
+ Deploying to Vercel (optional CLI - the web dashboard works too):
+
+npm install -g vercel
+
+-------------------------------------------------------------------------------
+ 5. VERIFY EVERYTHING
+-------------------------------------------------------------------------------
+ Paste the whole block. Every line should print a version, no errors.
+
+python --version
+node --version
+npm --version
+git --version
+gh --version
+cd C:\dev\DevNews-AI
+.\.venv\Scripts\python.exe -c "from google import genai; import groq, supabase, feedparser, httpx, dotenv; print('python deps OK')"
+
+ Expected:
+   Python 3.12.10
+   v24.19.0
+   11.17.0
+   git version 2.55.0.windows.3
+   gh version 2.100.0
+   python deps OK
+
+-------------------------------------------------------------------------------
+ 6. SECRETS  (no install - but nothing runs without these)
+-------------------------------------------------------------------------------
+ Local: copy the template and fill in real values. .env is gitignored.
+
+cd C:\dev\DevNews-AI
+Copy-Item .env.example .env
+notepad .env
+
+ Needed:
+   LLM_PROVIDER            gemini | groq   (not a secret - plain value, default gemini)
+   GEMINI_API_KEY          aistudio.google.com/apikey   > Create API key  (free, no card)
+   GROQ_API_KEY            console.groq.com/keys        > Create API Key  (free, no card)
+   SUPABASE_URL            Supabase > Project Settings > Data API > Project URL
+   SUPABASE_SERVICE_KEY    Supabase > Project Settings > API Keys > service_role
+
+ No paid API. Both LLM providers run on their free tier - see PROGRESS.md
+ decisions 17-19 for why Anthropic was dropped and why gemini is the default.
+
+ For the Phase 5 GitHub Actions cron, these go into repo secrets:
+
+gh auth login
+gh secret set GEMINI_API_KEY
+gh secret set GROQ_API_KEY
+gh secret set SUPABASE_URL
+gh secret set SUPABASE_SERVICE_KEY
+
+ WARNING: SUPABASE_SERVICE_KEY bypasses RLS. It lives in .env and GitHub
+ secrets only. Never in web/, never in a NEXT_PUBLIC_ var, never committed.
+
+-------------------------------------------------------------------------------
+ 7. DAILY DEV COMMANDS  (after setup)
+-------------------------------------------------------------------------------
+cd C:\dev\DevNews-AI
+.\.venv\Scripts\Activate.ps1
+
+python -m agent.fetch                 # 20 items, no LLM, no DB
+python -m agent.main                  # full run
+python -m agent.main --dry-run        # print the prompt, no API call
+python -m agent.select --run-id 12    # re-select an existing run, no re-fetch
+
+===============================================================================

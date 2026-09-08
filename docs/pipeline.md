@@ -1,5 +1,10 @@
 # Pipeline
 
+> **Note (2026-09-08):** this is the **v1 target** design and predates the provider
+> switch. The model names and the cost table below still say Haiku/Sonnet. v0 runs on
+> Gemini/Groq free tier at $0 — see `PROGRESS.md` decisions 17-19. The pipeline *shape*
+> described here is unchanged; only the provider names are stale.
+
 One GitHub Actions cron firing per day. Nine stages, checkpointed in `run_stages`.
 Deterministic code handles the volume; the model handles the judgement.
 

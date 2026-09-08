@@ -1,0 +1,10 @@
+# DevNews-AI — agent runtime (Python 3.12)
+
+# LLM providers — both free tier. Picked at runtime by LLM_PROVIDER in .env.
+google-genai==2.22.0
+groq==1.7.0
+
+supabase==2.31.0
+httpx==0.28.1
+feedparser==6.0.14
+python-dotenv==1.2.3

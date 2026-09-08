@@ -3,7 +3,7 @@
 Six phases. Each one ends in something you can look at and verify. Nothing in a phase
 depends on anything from a later phase.
 
-**v0 scope:** 3 sources → 20 headlines → one Sonnet call → 7-8 selected → web page.
+**v0 scope:** 3 sources → 20 headlines → one LLM call → 7-8 selected → web page.
 No email, no embeddings, no threads, no article fetching. Those are v1.
 
 ---
@@ -14,13 +14,15 @@ No email, no embeddings, no threads, no article fetching. Those are v1.
 
 **Tasks**
 - [ ] Supabase project banao (free tier). `SUPABASE_URL` + `service_role` key note karo.
-- [ ] Anthropic API key + ~$10 credit.
-- [ ] `requirements.txt` — `anthropic`, `supabase`, `httpx`, `feedparser`, `python-dotenv`
+- [ ] Gemini API key (aistudio.google.com/apikey) — free, card nahi chahiye.
+- [ ] Groq API key (console.groq.com/keys) — free, card nahi chahiye.
+      Model `openai/gpt-oss-120b` (Llama 3.3 70B retire ho chuka hai — 2026-09 pe verify kiya)
+- [ ] `requirements.txt` — `google-genai`, `groq`, `supabase`, `httpx`, `feedparser`, `python-dotenv`
 - [ ] `.gitignore` — `.env`, `__pycache__/`, `node_modules/`, `.next/`, `*.pyc`
 - [ ] `.env.example` (committed) + `.env` (gitignored)
 - [ ] `agent/__init__.py`, `agent/sources/__init__.py`
 
-**Exit:** `python -c "import anthropic, supabase, feedparser"` chalta hai.
+**Exit:** `python -c "from google import genai; import groq, supabase, feedparser"` chalta hai.
 
 **Gotcha:** service_role key RLS bypass karti hai. Woh sirf `.env` aur GitHub secrets mein
 rahegi — kabhi frontend mein nahi, kabhi commit mein nahi.
@@ -82,20 +84,26 @@ run close.
 
 **Goal:** 20 items pe scores, 7-8 selected, sab DB mein.
 
+**Provider abstraction pehle.** `agent/llm/` mein: `base.py` (Verdict shape + Protocol),
+`gemini.py`, `groq.py`, aur `__init__.py` mein ek `get_provider()` jo `LLM_PROVIDER` padhta
+hai. `select.py` ko kabhi pata nahi chalna chahiye kaunsa provider chala — wo sirf
+`provider.complete(system, user, schema)` call karta hai aur ek `Verdict` wapas leta hai.
+Yehi Rule 8 hai.
+
 **Tasks**
 - [ ] `agent/prompts/select.md` — system prompt: role, criteria (novel/consequential/depth),
       output contract, aur **interest profile hardcoded** (v0 mein DB se nahi aa raha)
 - [ ] `agent/select.py`
       - candidates DB se padho (`run_id = current`)
       - user block banao
-      - `claude-sonnet-5`, `thinking={"type":"adaptive"}`, `output_config` strict schema
+      - `get_provider().complete(...)` — strict JSON schema dono taraf same
       - response parse + validate
 - [ ] Code mein scoring: `final = 0.4*novel + 0.4*consequential + 0.2*depth`
 - [ ] Sort → top `SELECT_COUNT` (default 8) → `selected=true`
 - [ ] `store.update_verdicts()` — pehle is run ke sab items pe `selected=false` reset karo,
       phir naye verdicts likho (warna dobara chalane pe selections jud jaayenge)
-- [ ] `response.usage` se cost nikaal ke `runs.cost_usd` mein likho (v0 mein `llm_calls`
-      table nahi hai — per-run spend kaafi hai)
+- [ ] token usage `runs.input_tokens` / `output_tokens` mein likho. `cost_usd` free tier pe
+      0 rahega — column rehne do, provider paid hone pe kaam aayega
 
 **Do flags jo ab hi banane hain:**
 - `--dry-run` → API call ke bina prompt print karo. Prompt likhte waqt token bachaata hai.
@@ -107,8 +115,9 @@ run close.
 **Gotchas**
 - **Validate karo ki sab 20 ids wapas aayi hain.** Kam aayen to ek baar retry, phir run
   `partial` mark karke jitne aaye unse chalo.
-- `response.stop_reason` check karo. `max_tokens` hua to JSON adhoora hai — `max_tokens`
-  badhao (8000 se shuru).
+- Finish/stop reason check karo. Output truncate hua to JSON adhoora hai — max output tokens
+  badhao (8000 se shuru). **Groq pe ye zyada likely hai** — free tier 6K TPM hai aur hamari
+  ek call lagbhag utni hi hai.
 - Summary sab 20 ka lo, sirf selected ka nahi. Farak ~$0.01/day hai, aur reject summaries
   debug page pe kaam aate hain.
 - Weights code mein hain, prompt mein nahi — tuning ke liye prompt mat chhedo.
@@ -145,7 +154,8 @@ run close.
 
 **Tasks**
 - [ ] `.github/workflows/daily.yml` — cron `30 6 * * *` + `workflow_dispatch`
-- [ ] Repo secrets: `ANTHROPIC_API_KEY`, `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`
+- [ ] Repo secrets: `GEMINI_API_KEY`, `GROQ_API_KEY`, `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`
+      (`LLM_PROVIDER` secret nahi — workflow env mein plain likh do, secret nahi hai)
 - [ ] **Pehle manual dispatch se test karo**, cron ka intezaar mat karo
 - [ ] Ek cron run apne aap hone do, phir verify karo
 
@@ -162,6 +172,8 @@ run close.
 ## Phase 6 — Tighten (optional, v0 ke baad)
 
 - [ ] Prompt iterate karo `--run-id` se, ek hi item set pe versions compare karke
+- [ ] `LLM_PROVIDER` flip karke ek hi run pe Gemini vs Groq ka ranking compare karo —
+      dono free hain, toh ye A/B muft mein milta hai
 - [ ] Weights tune karo
 - [ ] Feed list expand karo
 - [ ] `README.md` — architecture diagram + kya seekha

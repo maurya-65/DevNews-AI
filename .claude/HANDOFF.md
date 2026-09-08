@@ -1,15 +1,16 @@
 # Handoff
 
 **Last updated:** 2026-09-08
-**State:** design complete, zero code written
-**Next action:** Phase 0 (setup), then Phase 1 (`fetch.py`)
+**State:** Phase 0 chal raha hai — toolchain + Supabase ready, LLM keys baaki. Zero code.
+**Next action:** Phase 1 (`fetch.py`) — isko kisi key ki zaroorat nahi, abhi shuru ho sakta hai
 
 ---
 
 ## Where things stand
 
-Poori design ho chuki hai aur `.claude/` + `docs/` mein likhi hui hai. Repo mein abhi
-sirf documentation hai — koi code nahi, koi dependency nahi, Supabase project bhi nahi bana.
+Poori design ho chuki hai aur `.claude/` + `docs/` mein likhi hui hai. Toolchain aur
+dependencies install ho chuke hain, Supabase project bhi bana hai — par **pipeline ka
+abhi tak ek line code nahi likha gaya.**
 
 Kaafi design iterations ke baad scope jaan-boojhkar chhota rakha gaya hai. Pehle bade
 versions soche gaye the (embeddings, story threads, email feedback loop, article fetching,
@@ -21,21 +22,24 @@ dikhana.**
 ## v0 — exactly this, nothing more
 
 ```
-3 sources → 20 headlines → ONE Sonnet call → 7-8 selected → web page
+3 sources → 20 headlines → ONE LLM call → 7-8 selected → web page
 ```
 
+Provider free tier pe hai aur swappable: `LLM_PROVIDER=gemini|groq`. Default
+`gemini-3.8-flash`. Poori reasoning PROGRESS decisions 17-19 mein.
+
 Nahi hai v0 mein: email, embeddings, threads, article fetching, click tracking,
-profile learning, Haiku.
+profile learning, do-model pipeline.
 
 **Done ka matlab:** roz subah bina kuch chhue ek public URL pe 7-8 CS headlines dikhein,
-score + reason + summary ke saath. Cost < $2/month.
+score + reason + summary ke saath. Cost $0 — sab free tier pe.
 
 ---
 
 ## Next session mein kya karna hai
 
-**1. Phase 0** — `.gitignore`, `requirements.txt`, `.env.example`, package `__init__.py`s
-banao. Supabase project bana ke `docs/schema-v0.sql` paste karo.
+**1. Phase 0** — ✅ files aur toolchain ho gaye. Baaki: user ko `docs/schema-v0.sql`
+Supabase SQL editor mein paste karna hai, aur Gemini/Groq keys `.env` mein daalni hain.
 
 **2. Phase 1** — `fetch.py` + teen source modules. Koi LLM nahi, koi DB nahi.
 Exit: `python -m agent.fetch` 20 asli items print kare.
@@ -49,13 +53,17 @@ Poora detail `BUILDFLOW.md` mein hai. Reasoning `PROGRESS.md` ke decisions log m
 
 ## Mujhe user se ye chahiye (blocking)
 
-| # | Kya | Kyun blocking hai |
+| # | Kya | Status |
 |---|---|---|
-| 1 | **Interest profile** — tumhe actually kya padhna pasand hai? Languages, topics, kya boring lagta hai | Ye `prompts/select.md` ka dil hai. Iske bina selection generic "popular tech news" ban jaayegi |
-| 2 | **Supabase project bana?** Sirf URL batana | Phase 2 blocked hai iske bina |
-| 3 | **Anthropic account mein credit hai?** | Phase 3 blocked |
-| 4 | **Cron time** — 06:30 UTC = 12:00 IST. Theek hai? | Workflow file mein jaayega |
-| 5 | **Site public ya private?** | RLS policy isse decide hogi |
+| 1 | **Interest profile** — actually kya padhna pasand hai? Languages, topics, kya boring lagta hai | ⬜ **abhi bhi chahiye — Phase 3 ka akela blocker** |
+| 2 | Supabase project | ✅ ho gaya, keys `.env` mein, connection verified |
+| 3 | LLM API key | ⬜ Gemini + Groq, dono free. Anthropic drop ho gaya |
+| 4 | Schema paste (`docs/schema-v0.sql`) | ⬜ Supabase SQL editor mein, ek baar |
+| 5 | Cron time | ✅ 06:30 UTC = 12:00 IST |
+| 6 | Site public ya private | ✅ public — anon RLS policies waise hi rahengi |
+
+**Keys chat mein kabhi paste mat karna.** Woh `.env` (local) aur GitHub repo secrets mein
+jaati hain. Mujhe sirf ye batana ki bana li hain.
 
 ### Decided — blog feeds (default list)
 
@@ -80,9 +88,6 @@ Do baatein Phase 1 mein dekhni hain:
 - **jvns aur danluu low-volume hain** — hafton mein ek post. Diversity ke liye ache hain, par
   blogs ka 5-item quota zyadatar Cloudflare/Netflix/Fly jaise regular publishers se bharega.
 
-**Keys chat mein kabhi paste mat karna.** Woh `.env` (local) aur GitHub repo secrets mein
-jaati hain. Mujhe sirf ye batana ki bana li hain.
-
 ---
 
 ## Kya na karna (already decided)
@@ -90,21 +95,38 @@ jaati hain. Mujhe sirf ye batana ki bana li hain.
 Ye sab discuss ho chuka hai aur reject hua hai. Dobara propose karne se pehle
 `PROGRESS.md` ka decisions log padhna.
 
-- **Haiku add karna** — 20 items pe compression ka volume nahi, aur selection se pehle
-  compress karna Sonnet se information cheen leta hai
+- **Chhota model add karke do-step banana** — 20 items pe compression ka volume nahi, aur
+  selection se pehle compress karna bade model se information cheen leta hai
 - **Do LLM calls** — v0 mein articles fetch nahi ho rahe, doosre turn ko naya kuch milega hi nahi
 - **Model se "top 8 chuno" bolna** — uska cut-off har din drift karega; ranking code ka kaam hai
+- **Ek provider pe settle karna** — dono free hain, abstraction likha ja chuka hai
 - **v0 mein embeddings/threads** — 20 items pe URL dedupe kaafi hai
 - **Reader UI pehle banana** — debug page (rejects ke saath) zyada zaroori hai
 - **Model ko `points`/`comments` dikhana** — pehle dekhna hai bina uske kaisa select karta hai
 
 ---
 
-## Phase 1 ke baad sabse pehle ye dekhna
+## Phase 1 ka result — measured 2026-09-08
 
-**Kitne items ka `blurb` null hai.** HN Algolia title + URL deta hai, blurb nahi — matlab
-~10 of 20 items sirf title pe judge honge.
+**Blurb missing: 15/20.** HANDOFF ne ~10/20 predict kiya tha; asliyat usse kharab hai.
 
-Agar zyadatar null nikle, to Phase 3 mein selection quality kamzor lag sakti hai. Ye v0 ka
-sabse bada known risk hai. **Abhi fix mat karna** — pehle observe karo, phir decide karo
-(meta description scrape karni hai ya HN source ko chhota karna hai).
+| Source | Items | Blurb hai |
+|---|---|---|
+| hn | 10 | 0 — Algolia `story_text` sirf Ask/Show HN pe aata hai |
+| lobsters | 5 | 0 — `description_plain` in stories pe khaali tha |
+| blog | 5 | 5 |
+
+Matlab **15 items sirf title pe judge honge.** Ye v0 ka sabse bada known risk hai.
+Blog blurbs bhi hamesha kaam ke nahi — Google research feed "General Science" bhejta hai,
+jo category hai, summary nahi.
+
+**Abhi fix mat karna.** Pehle Phase 3 chala ke dekho selection kaisi aati hai. Agar kharab
+lage to options: meta description scrape, ya HN quota ghatao, ya Lobsters `description`
+(HTML wala) use karo `description_plain` ki jagah.
+
+### Feed list badla
+Uber engineering feed **mar chuka hai** (404 browser UA pe, 406 bot UA pe). Meta
+(`engineering.fb.com/feed/`) se replace kiya. Baaki 7 feeds zinda, verified 2026-09-08.
+
+Cloudflare ne 5 blog slots mein se 2 le liye — `PER_FEED=3` cap laga hai, par merge
+recency pe hota hai toh high-volume feeds aage rehte hain. v0 ke liye acceptable.

@@ -1,8 +1,10 @@
 # DevNews-AI
 
 A personal CS news agent. Runs daily on GitHub Actions: fetches ~20 headlines from three
-sources, sends them to Claude Sonnet in **one call**, gets back scores + summaries, keeps the
+sources, sends them to an LLM in **one call**, gets back scores + summaries, keeps the
 top 7-8, writes to Supabase. A Next.js page on Vercel reads that DB directly.
+
+Runs entirely on free tiers — no paid API. The LLM provider is swappable (Gemini or Groq).
 
 Single user. No server. No backend — the frontend talks to Supabase itself.
 
@@ -36,7 +38,7 @@ Actions and Vercel never talk to each other. Supabase is the only shared state. 
 is ephemeral — nothing on disk survives a run.
 
 The LLM call happens **from inside the Actions runner** (or locally during dev), over HTTPS
-to Anthropic. Exactly one call per run.
+to whichever provider `LLM_PROVIDER` names. Exactly one call per run.
 
 ---
 
@@ -45,7 +47,7 @@ to Anthropic. Exactly one call per run.
 ```
 1. fetch      3 sources → ~40 raw → canonical-URL dedupe → top 20
 2. store      runs row, then items (ON CONFLICT DO NOTHING)
-3. select     read candidates from DB → ONE Sonnet call → verdicts for all 20
+3. select     read candidates from DB → ONE LLM call → verdicts for all 20
 4. score      weighted sum in CODE → sort → top 8 → selected=true
 5. store      update rows, close run
 6. web        reads latest successful run on request
@@ -65,14 +67,15 @@ to Anthropic. Exactly one call per run.
 5. **`SUPABASE_SERVICE_KEY` never reaches the frontend.** It bypasses RLS. Web uses the
    anon key with a read-only policy.
 6. **Nothing persists on the runner.** All state goes to Supabase.
-7. **Budget is a constraint, not a preference.** Under $5 CAD/month. Anything that
-   multiplies token usage needs a stated justification.
+7. **Budget is a constraint, not a preference.** $0 — everything runs on free tiers.
+   Anything that multiplies token usage needs a stated justification, because the ceiling
+   is now a rate limit rather than a bill.
 
 ---
 
 ## Conventions
 
-- Python 3.12, stdlib + `anthropic`, `supabase`, `httpx`, `feedparser`, `python-dotenv`
+- Python 3.12, stdlib + `google-genai`, `groq`, `supabase`, `httpx`, `feedparser`, `python-dotenv`
 - Every source module returns the same dict shape (see `BUILDFLOW.md` Phase 1)
 - Every source call is individually wrapped — one source failing must not fail the run
 - Config values (`SELECT_COUNT`, weights, quotas) are module constants, not literals
@@ -92,5 +95,21 @@ fresh set of items) on every tweak.
 
 ## Model
 
-`claude-sonnet-5` with `thinking={"type": "adaptive"}` and strict structured output via
-`output_config`. Sonnet is deliberate: the hard task here is selection, not summarization.
+Two providers, both free tier, chosen at runtime by `LLM_PROVIDER` in `.env`:
+
+| `LLM_PROVIDER` | Model | Notes |
+|---|---|---|
+| `gemini` (default) | `gemini-3.8-flash` | Better judgment, large TPM headroom |
+| `groq` | `openai/gpt-oss-120b` | Fast, but 6K TPM free cap ≈ one whole call |
+
+Both must return **strict JSON matching the same schema** — Gemini via `response_schema`,
+Groq via `response_format={"type": "json_object"}` plus validation. The provider is an
+implementation detail behind `agent/llm/`; nothing else in the pipeline knows which one ran.
+
+The hard task here is selection, not summarization. Judgment quality is the reason Gemini
+Flash is the default and the reason Groq's speed advantage is irrelevant — this is one
+batch call a day, nobody is waiting on it.
+
+**Rule 8: the provider is swappable, the contract is not.** A new provider means a new file
+in `agent/llm/` returning the same `Verdict` shape. It never means changing `select.py`,
+the scoring weights, or the schema.
