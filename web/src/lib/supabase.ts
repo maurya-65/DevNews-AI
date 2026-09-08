@@ -65,8 +65,20 @@ export async function latestRun(): Promise<Run | null> {
 
 export async function itemsForRun(runId: number, onlySelected: boolean) {
   let q = supabase.from("items").select("*").eq("run_id", runId);
-  if (onlySelected) q = q.eq("selected", true).order("position");
-  else q = q.order("score", { ascending: false, nullsFirst: false });
+
+  if (onlySelected) {
+    q = q.eq("selected", true).order("position");
+  } else {
+    // Selected first in their stored rank, then rejects by score. Ordering the whole
+    // list by score alone breaks on ties: two items on the same score can sort either
+    // way, so a selected item could render below the drawn cut line. On the one page
+    // whose job is showing where the cut fell, that line has to be true.
+    q = q
+      .order("selected", { ascending: false })
+      .order("position", { nullsFirst: false })
+      .order("score", { ascending: false, nullsFirst: false });
+  }
+
   const { data } = await q;
   return (data ?? []) as Item[];
 }
