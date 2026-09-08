@@ -74,6 +74,16 @@ CREATE POLICY "public read items" ON items FOR SELECT TO anon USING (true);
 CREATE VIEW latest_digest AS
 SELECT i.*
 FROM items i
-WHERE i.run_id = (SELECT id FROM runs WHERE status IN ('ok','partial') ORDER BY id DESC LIMIT 1)
+WHERE i.run_id = (
+        SELECT r.id
+        FROM runs r
+        WHERE r.status IN ('ok', 'partial')
+          -- Not just the latest ok run: a run whose candidates were all seen on an
+          -- earlier day inserts 0 rows and still closes 'ok'. Picking it would blank
+          -- the page, which is the exact failure this view exists to prevent.
+          AND EXISTS (SELECT 1 FROM items x WHERE x.run_id = r.id AND x.selected)
+        ORDER BY r.id DESC
+        LIMIT 1
+      )
   AND i.selected
 ORDER BY i.position;

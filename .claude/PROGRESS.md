@@ -3,8 +3,8 @@
 Living document. Update at the end of each working session.
 
 **Started:** 2026-09-08
-**Current phase:** 2 — Database (schema paste pending)
-**Status:** Phase 1 done — `python -m agent.fetch` 20 asli items deta hai
+**Current phase:** 4 — Web
+**Status:** Phase 1-3 done, pipeline end-to-end chal raha hai
 
 ---
 
@@ -14,8 +14,8 @@ Living document. Update at the end of each working session.
 |---|---|---|
 | 0 | Setup — accounts, keys, project files | 🟡 toolchain + Supabase done; LLM keys aur schema paste baaki |
 | 1 | Fetch — 3 sources → 20 headlines | ✅ done |
-| 2 | Database — Supabase, store items | ⬜ not started |
-| 3 | Selection — the one LLM call | ⬜ not started |
+| 2 | Database — Supabase, store items | ✅ done |
+| 3 | Selection — the one LLM call | ✅ done (placeholder profile) |
 | 4 | Web — feed + debug page on Vercel | ⬜ not started |
 | 5 | Automation — Actions cron | ⬜ not started |
 | 6 | Tighten — prompt + weights | ⬜ not started |
@@ -73,6 +73,25 @@ _koi nahi_
 ---
 
 ## Session log
+
+### 2026-09-08 — Phase 2 + 3
+Schema live. `store.py`, `main.py`, `agent/llm/{base,gemini,groq}.py`, `select.py`,
+`prompts/select.md` likhe. Full run: 20 fetched → 20 scored → 8 selected.
+
+**Measured, dono providers ek hi run pe:**
+
+| | in | out | total |
+|---|---|---|---|
+| gemini-3.8-flash | 2,255 | 2,039 | 4,294 |
+| openai/gpt-oss-120b | 2,454 | 3,170 | **5,624 = Groq ke 6K TPM ka 94%** |
+
+Decision 18 ka ~6K estimate lagbhag exact nikla. Groq pe headroom sach mein nahi hai.
+
+**Ek bug mila aur fix kiya:** jis run ke saare candidates pehle se DB mein hain wo 0 rows
+insert karta hai par `ok` close hota hai. Purana `latest_digest` view usi ko uthata tha
+→ site khaali. `docs/schema-v0-patch1.sql` isse theek karta hai (paste karna baaki).
+
+**Interest profile abhi bhi placeholder hai** — `prompts/select.md` mein clearly marked.
 
 ### 2026-09-08 — Phase 1
 `normalize.py`, `sources/{hackernews,lobsters,blogs}.py`, `fetch.py` likhe.
