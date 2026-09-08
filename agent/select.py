@@ -11,16 +11,58 @@ from __future__ import annotations
 
 import argparse
 import sys
+import time
 from pathlib import Path
 
 from agent import store
-from agent.llm import get_provider, verdict_schema
+from agent.llm import DEFAULT, get_provider, verdict_schema
 
 PROMPT_PATH = Path(__file__).parent / "prompts" / "select.md"
 
 # Rule 3: weights live here, never in the prompt. Tuning must not mean editing prose.
 WEIGHTS = {"novel": 0.4, "consequential": 0.4, "depth": 0.2}
 SELECT_COUNT = 8
+
+RETRY_DELAY = 20  # seconds; free-tier 503s are transient overload, not a hard failure
+
+
+def call_with_fallback(system: str, user: str, schema: dict,
+                       provider_name: str | None = None):
+    """One call, but do not let a transient free-tier 503 cost the whole day.
+
+    Retry the configured provider once, then fall back to the other one. This is the
+    payoff of supporting both (decision 19): a dead provider becomes a logged degradation
+    instead of a missing digest. Still one *successful* call per run — rule 1 holds.
+
+    Returns (verdict, note) where note is None on a clean first-try success.
+    """
+    primary = (provider_name or None)
+    order = [primary] if primary else [None]
+    # The other provider, whatever the first resolved to.
+    first = get_provider(primary)
+    alternate = "groq" if first.name == "gemini" else "gemini"
+
+    last_exc = None
+    for attempt, (name, wait) in enumerate([(primary, 0), (primary, RETRY_DELAY),
+                                            (alternate, 0)]):
+        try:
+            if wait:
+                print(f"  retrying in {wait}s…", file=sys.stderr)
+                time.sleep(wait)
+            provider = get_provider(name)
+            if attempt:
+                print(f"  attempt {attempt + 1}: {provider.name} / {provider.model}",
+                      file=sys.stderr)
+            verdict = provider.complete(system, user, schema)
+            note = None if attempt == 0 else (
+                f"succeeded on attempt {attempt + 1} via {provider.name} "
+                f"after {type(last_exc).__name__}")
+            return verdict, note
+        except Exception as exc:
+            last_exc = exc
+            print(f"  ! {type(exc).__name__}: {str(exc)[:120]}", file=sys.stderr)
+
+    raise RuntimeError(f"all providers failed; last: {last_exc}") from last_exc
 
 
 def load_prompt() -> str:
@@ -77,13 +119,15 @@ def select(run_id: int, *, provider_name: str | None = None,
         print(user)
         return 0
 
-    provider = get_provider(provider_name)
-    print(f"{provider.name} / {provider.model} — {len(candidates)} candidates",
+    print(f"{get_provider(provider_name).name} — {len(candidates)} candidates",
           file=sys.stderr)
 
-    verdict = provider.complete(system, user, verdict_schema())
+    verdict, fallback_note = call_with_fallback(
+        system, user, verdict_schema(), provider_name)
     by_id = verdict.by_id()
 
+    if fallback_note:
+        print(f"  ! {fallback_note}", file=sys.stderr)
     if verdict.truncated:
         print("  ! response was truncated — raise MAX_OUTPUT_TOKENS", file=sys.stderr)
 
@@ -123,7 +167,10 @@ def select(run_id: int, *, provider_name: str | None = None,
         selected=min(count, len(scored)),
         input_tokens=verdict.input_tokens,
         output_tokens=verdict.output_tokens,
-        error=f"{len(missing)} items had no verdict" if missing else None,
+        error="; ".join(filter(None, [
+            f"{len(missing)} items had no verdict" if missing else None,
+            fallback_note,
+        ])) or None,
     )
 
     print(f"\n{verdict.input_tokens} in / {verdict.output_tokens} out tokens\n",
