@@ -1,3 +1,12 @@
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { Empty } from "@/components/empty";
 import {
   formatRan,
   hostOf,
@@ -9,17 +18,31 @@ import {
 
 export const dynamic = "force-dynamic";
 
+function Stat({ label, value }: { label: string; value: string | number }) {
+  return (
+    <div>
+      <dt className="text-xs text-muted-foreground">{label}</dt>
+      <dd className="mt-0.5 font-mono text-sm tabular-nums">{value}</dd>
+    </div>
+  );
+}
+
 /** Sub-scores as the model returned them, before weighting. */
-function Scores({ item }: { item: Item }) {
+function SubScores({ item }: { item: Item }) {
   const parts: [string, number | null][] = [
     ["novel", item.novel],
     ["conseq", item.consequential],
     ["depth", item.depth],
   ];
   return (
-    <span className="font-mono text-[11px] text-stone-400 dark:text-stone-500">
-      {parts.map(([label, v]) => `${label} ${v ?? "–"}`).join("  ")}
-    </span>
+    <div className="flex gap-3">
+      {parts.map(([label, value]) => (
+        <span key={label} className="font-mono text-[11px] text-muted-foreground">
+          {label}{" "}
+          <span className="text-foreground/70 tabular-nums">{value ?? "–"}</span>
+        </span>
+      ))}
+    </div>
   );
 }
 
@@ -27,9 +50,7 @@ export default async function Debug() {
   const run = await latestRun();
 
   if (!run) {
-    return (
-      <p className="text-stone-500 dark:text-stone-400">No run to inspect yet.</p>
-    );
+    return <Empty title="No run to inspect yet" />;
   }
 
   const items = await itemsForRun(run.id, false);
@@ -37,72 +58,102 @@ export default async function Debug() {
 
   return (
     <>
-      <div className="mb-8 space-y-1 text-sm text-stone-500 dark:text-stone-400">
-        <p>
-          run {run.id} · {formatRan(run.ran_at)} · {run.status}
+      <div className="mb-8">
+        <h1 className="text-2xl font-semibold tracking-tight">Run {run.id}</h1>
+        <p className="mt-1.5 text-sm text-muted-foreground">
+          {formatRan(run.ran_at)}
         </p>
-        <p className="font-mono text-xs">
-          {run.fetched} fetched · {run.selected} selected ·{" "}
-          {run.input_tokens ?? "–"} in / {run.output_tokens ?? "–"} out tokens
-        </p>
-        {run.error && (
-          <p className="font-mono text-xs text-amber-600 dark:text-amber-500">
-            {run.error}
-          </p>
-        )}
       </div>
 
-      <ol className="space-y-6">
+      <Card className="mb-10">
+        <CardContent>
+          <dl className="grid grid-cols-2 gap-6 sm:grid-cols-4">
+            <Stat label="Status" value={run.status} />
+            <Stat label="Fetched" value={run.fetched} />
+            <Stat label="Selected" value={run.selected} />
+            <Stat
+              label="Tokens"
+              value={`${run.input_tokens ?? "–"} / ${run.output_tokens ?? "–"}`}
+            />
+          </dl>
+
+          {run.error && (
+            <>
+              <Separator className="my-5" />
+              <p className="font-mono text-xs leading-relaxed text-muted-foreground">
+                {run.error}
+              </p>
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      <ol>
         {items.map((item, i) => (
           <li key={item.id}>
             {/* The cut is the whole point of this page — mark exactly where it fell. */}
             {i === cutoff && cutoff > 0 && (
-              <div className="mb-6 flex items-center gap-3 text-[11px] uppercase tracking-wider text-stone-400 dark:text-stone-600">
-                <span className="h-px flex-1 bg-stone-200 dark:bg-stone-800" />
-                cut
-                <span className="h-px flex-1 bg-stone-200 dark:bg-stone-800" />
+              <div className="flex items-center gap-4 py-8">
+                <Separator className="flex-1" />
+                <span className="text-[10px] font-medium uppercase tracking-[0.15em] text-muted-foreground">
+                  cut
+                </span>
+                <Separator className="flex-1" />
               </div>
             )}
 
-            <div className={item.selected ? "" : "opacity-55"}>
-              <div className="flex gap-3">
-                <span className="w-10 shrink-0 pt-0.5 text-right font-mono text-sm tabular-nums text-stone-400 dark:text-stone-500">
-                  {item.score?.toFixed(1) ?? "–"}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <a
-                    href={item.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm font-medium leading-snug hover:underline"
-                  >
-                    {item.title}
-                  </a>
-                  <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-stone-500 dark:text-stone-400">
-                    <span>{hostOf(item.url)}</span>
-                    <span>·</span>
-                    <span>{SOURCE_LABEL[item.source] ?? item.source}</span>
-                    {!item.blurb && (
-                      <>
-                        <span>·</span>
-                        <span
-                          className="text-amber-600 dark:text-amber-500"
-                          title="Judged on the title alone — see HANDOFF.md"
-                        >
-                          no blurb
-                        </span>
-                      </>
-                    )}
-                  </p>
-                  <p className="mt-1">
-                    <Scores item={item} />
-                  </p>
-                  {item.reason && (
-                    <p className="mt-1.5 text-xs leading-relaxed text-stone-600 dark:text-stone-400">
-                      {item.reason}
-                    </p>
+            <div
+              className={`grid grid-cols-[3rem_1fr] gap-x-4 py-5 ${
+                item.selected ? "" : "opacity-60"
+              }`}
+            >
+              <span className="pt-0.5 text-right font-mono text-sm tabular-nums text-muted-foreground">
+                {item.score?.toFixed(1) ?? "–"}
+              </span>
+
+              <div className="min-w-0 space-y-2">
+                <a
+                  href={item.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block text-sm font-medium leading-snug decoration-muted-foreground/40 underline-offset-4 hover:underline"
+                >
+                  {item.title}
+                </a>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge variant="outline" className="font-normal">
+                    {SOURCE_LABEL[item.source] ?? item.source}
+                  </Badge>
+                  <span className="text-xs text-muted-foreground">
+                    {hostOf(item.url)}
+                  </span>
+                  {!item.blurb && (
+                    <Tooltip>
+                      <TooltipTrigger
+                        render={
+                          <Badge
+                            variant="secondary"
+                            className="cursor-help font-normal"
+                          >
+                            no blurb
+                          </Badge>
+                        }
+                      />
+                      <TooltipContent>
+                        Judged on the title alone — 15 of 20 items arrive this way
+                      </TooltipContent>
+                    </Tooltip>
                   )}
                 </div>
+
+                <SubScores item={item} />
+
+                {item.reason && (
+                  <p className="text-pretty text-xs leading-relaxed text-muted-foreground">
+                    {item.reason}
+                  </p>
+                )}
               </div>
             </div>
           </li>
