@@ -3,7 +3,7 @@
 Living document. Update at the end of each working session.
 
 **Started:** 2026-09-08
-**Current phase:** 4 — Web
+**Current phase:** 5 — Automation
 **Status:** Phase 1-3 done, pipeline end-to-end chal raha hai
 
 ---
@@ -16,8 +16,8 @@ Living document. Update at the end of each working session.
 | 1 | Fetch — 3 sources → 20 headlines | ✅ done |
 | 2 | Database — Supabase, store items | ✅ done |
 | 3 | Selection — the one LLM call | ✅ done (placeholder profile) |
-| 4 | Web — feed + debug page on Vercel | ⬜ not started |
-| 5 | Automation — Actions cron | ⬜ not started |
+| 4 | Web — feed + debug page on Vercel | ✅ pages done, Vercel deploy baaki |
+| 5 | Automation — Actions cron | 🟡 workflow + secrets done, dispatch test baaki |
 | 6 | Tighten — prompt + weights | ⬜ not started |
 
 `⬜ not started` · `🟡 in progress` · `✅ done` · `🔴 blocked`
@@ -73,6 +73,19 @@ _koi nahi_
 ---
 
 ## Session log
+
+### 2026-09-08 — Phase 4 + 5
+`web/` Next.js 16 app — `/` digest aur `/debug` (sab 20, scores + reason + cut line).
+Dono force-dynamic, anon key se seedha Supabase padhte hain. Asli data pe verify kiye.
+
+`main.py` mein select wire kiya, `.github/workflows/daily.yml` likha, `gh secret set`
+se chaaron secrets daal diye.
+
+**Do edge cases handle kiye:**
+- Run jisme 0 naye items hain ab `failed` close hota hai, `ok` nahi — warna wo kal ke
+  digest ko shadow kar deta.
+- Gemini free tier ne 503 diya testing mein. `select.py` ab retry karke doosre provider
+  pe gir jaata hai. Dono providers support karne ka yehi asli fayda nikla.
 
 ### 2026-09-08 — Phase 2 + 3
 Schema live. `store.py`, `main.py`, `agent/llm/{base,gemini,groq}.py`, `select.py`,

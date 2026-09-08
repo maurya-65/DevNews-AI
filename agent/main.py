@@ -1,4 +1,4 @@
-"""Orchestrates a full run: fetch -> store -> (Phase 3: select).
+"""Orchestrates a full run: fetch -> store -> select.
 
     python -m agent.main
 """
@@ -8,6 +8,7 @@ import sys
 import traceback
 
 from agent import fetch as fetch_mod
+from agent import select as select_mod
 from agent import store
 
 
@@ -27,10 +28,17 @@ def run() -> int:
         stored = store.insert_items(run_id, items)
         print(f"fetched {len(items)}, {stored} attached to this run", file=sys.stderr)
 
-        # Phase 3 goes here: select.py reads store.get_candidates(run_id).
-        store.close_run(run_id, status="ok", fetched=stored)
-        print(f"run {run_id} ok", file=sys.stderr)
-        return 0
+        if stored == 0:
+            # Every candidate was already seen on an earlier day. Nothing to select, and
+            # closing this 'ok' would let it shadow yesterday's digest.
+            store.close_run(run_id, status="failed", fetched=0,
+                            error="no new items — all candidates seen in an earlier run")
+            print("no new items", file=sys.stderr)
+            return 0
+
+        # select_mod closes the run itself: it owns the token counts and the partial/ok
+        # decision, both of which depend on what the model actually returned.
+        return select_mod.select(run_id)
 
     except Exception as exc:
         store.close_run(run_id, status="failed", error=f"{type(exc).__name__}: {exc}")
