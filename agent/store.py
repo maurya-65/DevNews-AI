@@ -82,8 +82,10 @@ def update_verdicts(run_id: int, updates: list[dict]) -> None:
         {"selected": False, "position": None}).eq("run_id", run_id).execute()
 
     for row in updates:
-        item_id = row.pop("id")
-        client().table("items").update(row).eq("id", item_id).execute()
+        # Copy rather than pop: mutating the caller's dicts is a side effect they can't
+        # see, and callers do read these again afterwards.
+        fields = {k: v for k, v in row.items() if k != "id"}
+        client().table("items").update(fields).eq("id", row["id"]).execute()
 
 
 DEFAULT_PREFERENCES = {
@@ -92,6 +94,7 @@ DEFAULT_PREFERENCES = {
     "avoid": [],
     "level": "working",
     "select_count": 8,
+    "min_score": 4.0,
     "hn_quota": 10,
     "lobsters_quota": 5,
     "blogs_quota": 5,

@@ -78,11 +78,15 @@ function QuotaField({
   label,
   hint,
   value,
+  step = 1,
+  max = 20,
 }: {
   name: string;
   label: string;
   hint: string;
   value: number;
+  step?: number;
+  max?: number;
 }) {
   return (
     <div className="space-y-1.5">
@@ -94,7 +98,8 @@ function QuotaField({
         name={name}
         type="number"
         min={0}
-        max={20}
+        max={max}
+        step={step}
         defaultValue={value}
         className="font-mono tabular-nums"
       />
@@ -169,14 +174,22 @@ export function SettingsForm({ prefs }: { prefs: Preferences }) {
 
       <Section
         title="Volume"
-        description="How much is fetched, and how much survives the cut."
+        description="A ceiling and a bar, not a target. On a thin day you get a short digest instead of padding."
       >
         <div className="grid gap-5 sm:grid-cols-2">
           <QuotaField
             name="select_count"
-            label="Items kept"
-            hint="How many appear in the digest."
+            label="Most items to keep"
+            hint="The ceiling. Fewer is normal."
             value={prefs.select_count}
+          />
+          <QuotaField
+            name="min_score"
+            label="Minimum score"
+            hint="Nothing below this ships. Raise it for a stricter digest."
+            value={prefs.min_score}
+            step={0.5}
+            max={10}
           />
           <QuotaField
             name="hn_quota"

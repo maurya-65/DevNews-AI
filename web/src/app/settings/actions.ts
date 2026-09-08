@@ -42,6 +42,7 @@ export async function saveSettings(
     avoid,
     level,
     select_count: clampInt(form.get("select_count"), 1, 20, 8),
+    min_score: Math.max(0, Math.min(10, Number(form.get("min_score")) || 0)),
     hn_quota: clampInt(form.get("hn_quota"), 0, 20, 10),
     lobsters_quota: clampInt(form.get("lobsters_quota"), 0, 20, 5),
     blogs_quota: clampInt(form.get("blogs_quota"), 0, 20, 5),

@@ -39,28 +39,25 @@ export type Run = {
   error: string | null;
 };
 
-/** The run the pages describe: the most recent one that actually selected something. */
+/** The run the pages describe. Mirrors the latest_digest view.
+ *
+ * Chosen on fetched, not on whether anything was selected, because those are different
+ * failures: fetched = 0 means every candidate was already seen and there is no digest
+ * (closed 'failed', so it never gets here) — while fetched > 0 with nothing selected
+ * means we looked and nothing was good enough. That is today's answer, and showing
+ * yesterday's instead would be a lie.
+ */
 export async function latestRun(): Promise<Run | null> {
   const { data } = await supabase
     .from("runs")
     .select("*")
     .in("status", ["ok", "partial"])
+    .gt("fetched", 0)
     .order("id", { ascending: false })
-    .limit(10);
+    .limit(1)
+    .maybeSingle();
 
-  if (!data?.length) return null;
-
-  // A run can close 'ok' having inserted nothing (every candidate was seen on an earlier
-  // day). Those runs have no items, and showing one blanks the page.
-  for (const run of data) {
-    const { count } = await supabase
-      .from("items")
-      .select("id", { count: "exact", head: true })
-      .eq("run_id", run.id)
-      .eq("selected", true);
-    if (count) return run;
-  }
-  return null;
+  return (data as Run) ?? null;
 }
 
 export async function itemsForRun(runId: number, onlySelected: boolean) {
@@ -111,6 +108,7 @@ export type Preferences = {
   avoid: string[];
   level: "working" | "deep" | "learning";
   select_count: number;
+  min_score: number;
   hn_quota: number;
   lobsters_quota: number;
   blogs_quota: number;
@@ -123,6 +121,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   avoid: [],
   level: "working",
   select_count: 8,
+  min_score: 4,
   hn_quota: 10,
   lobsters_quota: 5,
   blogs_quota: 5,

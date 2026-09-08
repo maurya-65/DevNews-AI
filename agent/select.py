@@ -21,7 +21,8 @@ PROMPT_PATH = Path(__file__).parent / "prompts" / "select.md"
 
 # Rule 3: weights live here, never in the prompt. Tuning must not mean editing prose.
 WEIGHTS = {"novel": 0.4, "consequential": 0.4, "depth": 0.2}
-SELECT_COUNT = 8  # fallback; the stored preference wins when there is one
+SELECT_COUNT = 8   # ceiling, not a target — the stored preference wins
+MIN_SCORE = 4.0    # nothing below this ships, even if that means a shorter digest
 
 RETRY_DELAY = 20  # seconds; free-tier 503s are transient overload, not a hard failure
 
@@ -119,6 +120,7 @@ def select(run_id: int, *, provider_name: str | None = None,
     if count is None:
         count = prefs.get("select_count") or SELECT_COUNT
     count = max(1, min(count, len(candidates)))
+    min_score = float(prefs.get("min_score", MIN_SCORE))
 
     system = load_prompt(prefs)
     user = build_user_block(candidates)
@@ -156,9 +158,13 @@ def select(run_id: int, *, provider_name: str | None = None,
         scored.append({**c, "_v": v, "_score": score(v)})
     scored.sort(key=lambda r: r["_score"], reverse=True)
 
+    # select_count is a ceiling and min_score is the bar. Both must hold, so a thin day
+    # ships a short digest rather than padding itself out with items the model already
+    # said were mediocre (PRODUCT_VISION principle 6).
     updates = []
     for rank, row in enumerate(scored, 1):
-        v, chosen = row["_v"], rank <= count
+        v = row["_v"]
+        chosen = rank <= count and row["_score"] >= min_score
         updates.append({
             "id": row["id"],
             "novel": v.get("novel"),
@@ -171,12 +177,15 @@ def select(run_id: int, *, provider_name: str | None = None,
             "position": rank if chosen else None,
         })
 
+    chosen_ids = {u["id"] for u in updates if u["selected"]}
+    kept = len(chosen_ids)
+
     store.update_verdicts(run_id, updates)
     store.close_run(
         run_id,
         status="partial" if (missing or verdict.truncated) else "ok",
         fetched=len(candidates),
-        selected=min(count, len(scored)),
+        selected=kept,
         input_tokens=verdict.input_tokens,
         output_tokens=verdict.output_tokens,
         error="; ".join(filter(None, [
@@ -188,7 +197,7 @@ def select(run_id: int, *, provider_name: str | None = None,
     print(f"\n{verdict.input_tokens} in / {verdict.output_tokens} out tokens\n",
           file=sys.stderr)
     for rank, row in enumerate(scored, 1):
-        mark = "*" if rank <= count else " "
+        mark = "*" if row["id"] in chosen_ids else " "
         print(f"{mark}{rank:>2}. {row['_score']:>5.2f}  [{row['source']}] "
               f"{row['title'][:62]}")
         print(f"      {row['_v'].get('reason', '')[:100]}")
