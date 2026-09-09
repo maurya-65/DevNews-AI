@@ -114,7 +114,15 @@ CREATE POLICY "read own verdicts" ON verdicts FOR SELECT TO authenticated
 
 -- ---------------------------------------------------------------------------
 -- items becomes a shared candidate pool: no per-user columns, no anon read.
+--
+-- The views go FIRST. latest_digest selects items.novel, so dropping the column while
+-- the view still exists fails with "other objects depend on it".
 -- ---------------------------------------------------------------------------
+DROP VIEW IF EXISTS latest_digest;
+DROP VIEW IF EXISTS digest_runs;
+DROP VIEW IF EXISTS my_digest;
+DROP VIEW IF EXISTS my_runs;
+
 ALTER TABLE items DROP COLUMN IF EXISTS novel;
 ALTER TABLE items DROP COLUMN IF EXISTS consequential;
 ALTER TABLE items DROP COLUMN IF EXISTS depth;
@@ -125,9 +133,6 @@ ALTER TABLE items DROP COLUMN IF EXISTS selected;
 ALTER TABLE items DROP COLUMN IF EXISTS position;
 
 -- The digest is no longer public: reading it requires an account.
-DROP VIEW IF EXISTS latest_digest;
-DROP VIEW IF EXISTS digest_runs;
-
 DROP POLICY IF EXISTS "public read items" ON items;
 DROP POLICY IF EXISTS "public read runs"  ON runs;
 DROP POLICY IF EXISTS "read items" ON items;
@@ -137,10 +142,14 @@ CREATE POLICY "read items" ON items FOR SELECT TO authenticated USING (true);
 CREATE POLICY "read runs"  ON runs  FOR SELECT TO authenticated USING (true);
 
 -- ---------------------------------------------------------------------------
--- What each signed-in user's pages query. Both are filtered by RLS on verdicts,
--- so a user only ever sees their own rows.
+-- What each signed-in user's pages query.
+--
+-- security_invoker is NOT optional here. A Postgres view runs with its owner's rights by
+-- default, which means it reads the underlying tables with RLS bypassed — every user
+-- would see every other user's verdicts through these views. security_invoker makes the
+-- view run as the caller, so the policies on verdicts actually apply.
 -- ---------------------------------------------------------------------------
-CREATE OR REPLACE VIEW my_digest AS
+CREATE VIEW my_digest WITH (security_invoker = true) AS
 SELECT v.user_id,
        v.run_id,
        v.score, v.reason, v.summary, v.position,
@@ -154,7 +163,7 @@ JOIN runs  r ON r.id = v.run_id
 WHERE v.selected
 ORDER BY v.run_id DESC, v.position;
 
-CREATE OR REPLACE VIEW my_runs AS
+CREATE VIEW my_runs WITH (security_invoker = true) AS
 SELECT v.user_id,
        r.id,
        r.ran_at,
