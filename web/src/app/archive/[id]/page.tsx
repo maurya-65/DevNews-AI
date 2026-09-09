@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DigestList } from "@/components/digest-list";
+import { PageHeader } from "@/components/page-header";
 import { formatDay, itemsForRun, runById } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
@@ -21,19 +22,16 @@ export default async function ArchivedDigest({
     <>
       <Link
         href="/archive"
-        className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+        className="mb-8 inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
       >
-        ← Archive
+        <span aria-hidden>←</span> Archive
       </Link>
 
-      <div className="mb-12 mt-6">
-        <h1 className="text-2xl font-semibold tracking-tight">
-          {formatDay(run.ran_at)}
-        </h1>
-        <p className="mt-1.5 text-sm text-muted-foreground">
-          {items.length} kept from {run.fetched}
-        </p>
-      </div>
+      <PageHeader
+        eyebrow="Archive"
+        title={formatDay(run.ran_at)}
+        meta={`${items.length} of ${run.fetched} kept`}
+      />
 
       <DigestList items={items} />
     </>

@@ -1,11 +1,7 @@
 import { DigestList } from "@/components/digest-list";
 import { Empty } from "@/components/empty";
-import {
-  formatRan,
-  getPreferences,
-  itemsForRun,
-  latestRun,
-} from "@/lib/supabase";
+import { PageHeader } from "@/components/page-header";
+import { formatDay, formatRan, getPreferences, itemsForRun, latestRun } from "@/lib/supabase";
 
 // Read live on every request. There is no build-time data and no rebuild on cron.
 export const dynamic = "force-dynamic";
@@ -15,7 +11,13 @@ export default async function Home() {
 
   if (!run) {
     return (
-      <Empty title="No digest yet" hint="The first run hasn't produced anything." />
+      <>
+        <PageHeader eyebrow="Digest" title="Nothing yet" />
+        <Empty
+          title="No digest has run"
+          hint="Once the agent runs, the day's reading lands here."
+        />
+      </>
     );
   }
 
@@ -29,10 +31,14 @@ export default async function Home() {
   if (!items.length) {
     return (
       <>
-        <Header ran={run.ran_at} subtitle="Nothing worth your time today" />
+        <PageHeader
+          eyebrow="Digest"
+          title={formatDay(run.ran_at)}
+          meta={`${run.fetched} candidates · none cleared ${prefs.min_score}`}
+        />
         <Empty
           title="Quiet day"
-          hint={`All ${run.fetched} candidates scored below ${prefs.min_score}. Rather than pad the list, here's nothing.`}
+          hint="Nothing today was worth your attention. Padding the list to look busy would waste more of your time than an empty page does."
         />
       </>
     );
@@ -42,26 +48,16 @@ export default async function Home() {
 
   return (
     <>
-      <Header
-        ran={run.ran_at}
-        subtitle={
+      <PageHeader
+        eyebrow="Digest"
+        title={formatDay(run.ran_at)}
+        meta={
           thin
-            ? `${items.length} cleared the bar out of ${run.fetched}`
-            : `${items.length} kept from ${run.fetched}`
+            ? `${items.length} of ${run.fetched} cleared the bar · ${formatRan(run.ran_at)}`
+            : `${items.length} of ${run.fetched} kept · ${formatRan(run.ran_at)}`
         }
       />
       <DigestList items={items} />
     </>
-  );
-}
-
-function Header({ ran, subtitle }: { ran: string; subtitle: string }) {
-  return (
-    <div className="mb-12">
-      <h1 className="text-2xl font-semibold tracking-tight">Today</h1>
-      <p className="mt-1.5 text-sm text-muted-foreground">
-        {formatRan(ran)} · {subtitle}
-      </p>
-    </div>
   );
 }

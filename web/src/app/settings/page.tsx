@@ -1,3 +1,4 @@
+import { PageHeader } from "@/components/page-header";
 import { getPreferences } from "@/lib/supabase";
 import { SettingsForm } from "./settings-form";
 
@@ -5,17 +6,25 @@ export const dynamic = "force-dynamic";
 
 export default async function Settings() {
   const prefs = await getPreferences();
+  const updated = prefs.updated_at
+    ? new Date(prefs.updated_at).toLocaleDateString("en-IN", {
+        day: "numeric",
+        month: "short",
+        timeZone: "Asia/Kolkata",
+      })
+    : null;
 
   return (
     <>
-      <div className="mb-8">
-        <h1 className="text-2xl font-semibold tracking-tight">Preferences</h1>
-        <p className="mt-1.5 text-sm text-muted-foreground">
-          These shape what tomorrow&apos;s digest keeps. Changes apply on the next run,
-          not retroactively.
-        </p>
-      </div>
-
+      <PageHeader
+        eyebrow="Preferences"
+        title="What you want to read"
+        meta={
+          updated
+            ? `Last changed ${updated} · applies to the next run, not past ones`
+            : "Applies to the next run, not past ones"
+        }
+      />
       <SettingsForm prefs={prefs} />
     </>
   );

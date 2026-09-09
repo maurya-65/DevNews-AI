@@ -18,19 +18,28 @@ import {
 import { saveSettings, type SaveResult } from "./actions";
 
 function Section({
+  step,
   title,
   description,
   children,
 }: {
+  step: number;
   title: string;
   description: string;
   children: React.ReactNode;
 }) {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">{title}</CardTitle>
-        <p className="text-sm text-muted-foreground">{description}</p>
+    <Card className="border-border/70 shadow-none">
+      <CardHeader className="gap-1">
+        <CardTitle className="flex items-baseline gap-2.5 text-base">
+          <span className="font-mono text-xs tabular-nums text-muted-foreground/50">
+            {String(step).padStart(2, "0")}
+          </span>
+          {title}
+        </CardTitle>
+        <p className="max-w-[58ch] text-pretty text-sm leading-relaxed text-muted-foreground">
+          {description}
+        </p>
       </CardHeader>
       <CardContent>{children}</CardContent>
     </Card>
@@ -52,7 +61,7 @@ function CheckGrid({
         <Label
           key={opt.id}
           htmlFor={`${name}-${opt.id}`}
-          className="flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors hover:bg-accent/50 has-[[data-checked]]:border-foreground/25 has-[[data-checked]]:bg-accent"
+          className="flex cursor-pointer items-start gap-3 rounded-lg border border-border/70 p-3.5 transition-colors hover:border-border hover:bg-accent/40 has-[[data-checked]]:border-foreground/30 has-[[data-checked]]:bg-accent"
         >
           <Checkbox
             id={`${name}-${opt.id}`}
@@ -117,6 +126,7 @@ export function SettingsForm({ prefs }: { prefs: Preferences }) {
   return (
     <form action={action} className="space-y-6">
       <Section
+        step={1}
         title="What you want"
         description="Picked topics are described to the model in prose, not as keywords — it still judges each item on merit."
       >
@@ -124,6 +134,7 @@ export function SettingsForm({ prefs }: { prefs: Preferences }) {
       </Section>
 
       <Section
+        step={2}
         title="What to skip"
         description="These get scored down hard rather than filtered out, so you can still see them on the ranked list."
       >
@@ -131,6 +142,7 @@ export function SettingsForm({ prefs }: { prefs: Preferences }) {
       </Section>
 
       <Section
+        step={3}
         title="Depth"
         description="How much context the summaries should assume you already have."
       >
@@ -139,7 +151,7 @@ export function SettingsForm({ prefs }: { prefs: Preferences }) {
             <Label
               key={opt.id}
               htmlFor={`level-${opt.id}`}
-              className="flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors hover:bg-accent/50 has-[[data-checked]]:border-foreground/25 has-[[data-checked]]:bg-accent"
+              className="flex cursor-pointer items-start gap-3 rounded-lg border border-border/70 p-3.5 transition-colors hover:border-border hover:bg-accent/40 has-[[data-checked]]:border-foreground/30 has-[[data-checked]]:bg-accent"
             >
               <RadioGroupItem
                 id={`level-${opt.id}`}
@@ -160,6 +172,7 @@ export function SettingsForm({ prefs }: { prefs: Preferences }) {
       </Section>
 
       <Section
+        step={4}
         title="In your own words"
         description="Anything the toggles can't say. This is appended last, so it overrides them."
       >
@@ -173,6 +186,7 @@ export function SettingsForm({ prefs }: { prefs: Preferences }) {
       </Section>
 
       <Section
+        step={5}
         title="Volume"
         description="A ceiling and a bar, not a target. On a thin day you get a short digest instead of padding."
       >
@@ -212,15 +226,26 @@ export function SettingsForm({ prefs }: { prefs: Preferences }) {
         </div>
       </Section>
 
-      <div className="flex items-center gap-3 pb-4">
-        <Button type="submit" disabled={pending}>
-          {pending ? "Saving…" : "Save preferences"}
-        </Button>
-        {state && (
-          <Badge variant={state.ok ? "secondary" : "destructive"} className="font-normal">
-            {state.message}
-          </Badge>
-        )}
+      {/* The form is long enough that a button at the bottom is easy to lose. */}
+      <div className="sticky bottom-0 -mx-6 border-t border-border/60 bg-background/85 px-6 py-4 backdrop-blur-md">
+        <div className="flex flex-wrap items-center gap-3">
+          <Button type="submit" disabled={pending}>
+            {pending ? "Saving…" : "Save preferences"}
+          </Button>
+          {state && (
+            <Badge
+              variant={state.ok ? "secondary" : "destructive"}
+              className="font-normal"
+            >
+              {state.message}
+            </Badge>
+          )}
+          {!state && (
+            <span className="text-xs text-muted-foreground">
+              Takes effect on the next run.
+            </span>
+          )}
+        </div>
       </div>
     </form>
   );
