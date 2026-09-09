@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ThemeToggle } from "@/components/theme";
+import { signOut } from "@/app/login/actions";
 
 const SIGNED_IN_LINKS = [
   { href: "/", label: "Today" },
@@ -61,6 +62,16 @@ export function Nav({
             >
               Debug
             </Link>
+          )}
+          {signedIn && (
+            <form action={signOut}>
+              <button
+                type="submit"
+                className="rounded-md px-2.5 py-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
+              >
+                Sign out
+              </button>
+            </form>
           )}
           <span className="mx-1 h-4 w-px bg-border" />
           <ThemeToggle />

@@ -5,7 +5,7 @@ import { authClient } from "@/lib/auth";
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
-  const next = searchParams.get("next") ?? "/settings";
+  const next = searchParams.get("next") ?? "/";
 
   if (!code) {
     return NextResponse.redirect(`${origin}/login?error=no_code`);
@@ -22,6 +22,6 @@ export async function GET(request: NextRequest) {
 
   // Only ever redirect to a path on this site — an open redirect here would let a
   // crafted link bounce a freshly authenticated user to somewhere else entirely.
-  const target = next.startsWith("/") && !next.startsWith("//") ? next : "/settings";
+  const target = next.startsWith("/") && !next.startsWith("//") ? next : "/";
   return NextResponse.redirect(`${origin}${target}`);
 }

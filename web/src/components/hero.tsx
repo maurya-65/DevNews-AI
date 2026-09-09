@@ -41,7 +41,7 @@ export function Hero() {
           href="/login"
           className="rounded-md bg-foreground px-4 py-2 font-medium text-background transition-opacity hover:opacity-90"
         >
-          Get your digest
+          Create an account
         </Link>
         <a
           href="https://github.com/maurya-65/DevNews-AI"
