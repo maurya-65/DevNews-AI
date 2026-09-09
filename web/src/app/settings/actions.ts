@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { currentOwner } from "@/lib/auth";
 import { admin } from "@/lib/supabase-admin";
 import { AVOID_OPTIONS, LEVEL_OPTIONS, TOPIC_OPTIONS } from "@/lib/supabase";
 
@@ -25,6 +26,12 @@ export async function saveSettings(
   _prev: SaveResult | null,
   form: FormData,
 ): Promise<SaveResult> {
+  // Checked here, not only in the page. A server action is a public POST endpoint —
+  // hiding the form does nothing, and this one writes with the service key.
+  if (!(await currentOwner())) {
+    return { ok: false, message: "Sign in as the owner to change these." };
+  }
+
   // Validated against the known option lists rather than trusted. This action runs with
   // the service key, so an unchecked value would reach the DB — and from there go
   // straight into the prompt.

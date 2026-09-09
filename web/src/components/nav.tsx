@@ -7,10 +7,15 @@ import { ThemeToggle } from "@/components/theme";
 const LINKS = [
   { href: "/", label: "Today" },
   { href: "/archive", label: "Archive" },
-  { href: "/settings", label: "Settings" },
 ];
 
-export function Nav({ showDebug }: { showDebug: boolean }) {
+export function Nav({
+  showDebug,
+  isOwner,
+}: {
+  showDebug: boolean;
+  isOwner: boolean;
+}) {
   const pathname = usePathname();
   const isActive = (href: string) =>
     href === "/" ? pathname === "/" : pathname.startsWith(href);
@@ -40,7 +45,20 @@ export function Nav({ showDebug }: { showDebug: boolean }) {
               {label}
             </Link>
           ))}
-          {showDebug && (
+          {isOwner && (
+            <Link
+              href="/settings"
+              aria-current={isActive("/settings") ? "page" : undefined}
+              className={`rounded-md px-2.5 py-1.5 text-sm transition-colors ${
+                isActive("/settings")
+                  ? "font-medium text-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Settings
+            </Link>
+          )}
+          {showDebug && isOwner && (
             <Link
               href="/debug"
               className="rounded-md px-2.5 py-1.5 text-sm text-muted-foreground/40 transition-colors hover:text-foreground"

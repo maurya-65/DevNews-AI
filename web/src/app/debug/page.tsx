@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/tooltip";
 import { notFound } from "next/navigation";
 import { Empty } from "@/components/empty";
+import { currentOwner } from "@/lib/auth";
 import {
   formatRan,
   hostOf,
@@ -49,8 +50,8 @@ function SubScores({ item }: { item: Item }) {
 
 export default async function Debug() {
   // Tuning tool, not a reader page. Token counts and rejected items are not something a
-  // visitor should land on, so the route 404s unless it is explicitly switched on.
-  if (process.env.SHOW_DEBUG !== "1") notFound();
+  // visitor should land on, so it needs both the flag and the owner's session.
+  if (process.env.SHOW_DEBUG !== "1" || !(await currentOwner())) notFound();
 
   const run = await latestRun();
 
