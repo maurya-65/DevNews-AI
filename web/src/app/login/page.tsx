@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { currentUser, isOwner } from "@/lib/auth";
-import { signInWithGitHub, signOut } from "./actions";
+import { currentUser } from "@/lib/auth";
+import { signInWithGitHub } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -21,8 +21,8 @@ export default async function Login({
   const { error } = await searchParams;
   const user = await currentUser();
 
-  // Already the owner — nothing to do here.
-  if (user && isOwner(user.email)) redirect("/settings");
+  // Already signed in — go read.
+  if (user) redirect("/");
 
   return (
     <div className="mx-auto max-w-sm py-16">
@@ -30,37 +30,22 @@ export default async function Login({
         <p className="mb-3 text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
           Sign in
         </p>
-        <h1 className="text-3xl font-semibold tracking-tight">Owner access</h1>
+        <h1 className="text-3xl font-semibold tracking-tight">Your briefing</h1>
         <p className="mt-4 text-pretty text-sm leading-relaxed text-muted-foreground">
-          The digest is public. Signing in is only needed to change what it selects —
-          this is a single-person tool, so exactly one account can edit it.
+          Sign in to get a digest chosen for you. Your preferences and your reading are
+          yours alone — the sources are shared, the judgement is not.
         </p>
       </div>
 
       <div className="mt-8 animate-in fade-in slide-in-from-bottom-2 delay-100 duration-500 fill-mode-backwards">
-        {user ? (
-          <form action={signOut} className="space-y-4">
-            <div className="rounded-lg border border-border/70 bg-muted/30 p-4">
-              <p className="text-sm">
-                Signed in as{" "}
-                <span className="font-medium">{user.email ?? "unknown"}</span>
-              </p>
-              <p className="mt-1.5 text-sm text-muted-foreground">
-                This account is not the owner, so settings stay read-only.
-              </p>
-            </div>
-            <Button type="submit" variant="outline" className="w-full">
-              Sign out
-            </Button>
-          </form>
-        ) : (
+        {
           <form action={signInWithGitHub}>
             <Button type="submit" className="w-full gap-2">
               <GitHubMark />
               Continue with GitHub
             </Button>
           </form>
-        )}
+        }
 
         {error && (
           <p className="mt-4 rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">

@@ -43,7 +43,9 @@ Output is two surfaces from one pipeline:
 ## What this is *not*
 
 - Not a general news app. Scope is computer science / software / ML.
-- Not multi-user. Single-user by design; personalisation is the whole point.
+- ~~Not multi-user. Single-user by design~~ — **superseded 2026-09-08 (decisions 20-23).**
+  Now multi-user: sources are shared, judgement is per account. Personalisation is still
+  the whole point — it just belongs to each reader rather than to the one owner.
 - Not real-time. One run per day is the right cadence for a briefing.
 - Not a summarizer. If the output reads like "here are 10 summaries", the project failed.
 

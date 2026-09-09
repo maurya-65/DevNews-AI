@@ -4,17 +4,18 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ThemeToggle } from "@/components/theme";
 
-const LINKS = [
+const SIGNED_IN_LINKS = [
   { href: "/", label: "Today" },
   { href: "/archive", label: "Archive" },
+  { href: "/settings", label: "Settings" },
 ];
 
 export function Nav({
   showDebug,
-  isOwner,
+  signedIn,
 }: {
   showDebug: boolean;
-  isOwner: boolean;
+  signedIn: boolean;
 }) {
   const pathname = usePathname();
   const isActive = (href: string) =>
@@ -31,7 +32,7 @@ export function Nav({
         </Link>
 
         <nav className="flex items-center gap-0.5">
-          {LINKS.map(({ href, label }) => (
+          {(signedIn ? SIGNED_IN_LINKS : []).map(({ href, label }) => (
             <Link
               key={href}
               href={href}
@@ -45,20 +46,15 @@ export function Nav({
               {label}
             </Link>
           ))}
-          {isOwner && (
+          {!signedIn && (
             <Link
-              href="/settings"
-              aria-current={isActive("/settings") ? "page" : undefined}
-              className={`rounded-md px-2.5 py-1.5 text-sm transition-colors ${
-                isActive("/settings")
-                  ? "font-medium text-foreground"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
+              href="/login"
+              className="rounded-md px-2.5 py-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
             >
-              Settings
+              Sign in
             </Link>
           )}
-          {showDebug && isOwner && (
+          {showDebug && signedIn && (
             <Link
               href="/debug"
               className="rounded-md px-2.5 py-1.5 text-sm text-muted-foreground/40 transition-colors hover:text-foreground"

@@ -1,4 +1,4 @@
-"""Orchestrates a full run: fetch -> store -> select.
+"""Orchestrates a full run: fetch once -> store -> select per user.
 
     python -m agent.main
 """
@@ -17,8 +17,10 @@ def run() -> int:
     print(f"run {run_id} started", file=sys.stderr)
 
     try:
-        prefs = store.get_preferences()
-        items = fetch_mod.fetch(prefs=prefs)
+        # Fetch once for everyone, sized to the most demanding profile. Selection is
+        # what differs per user, not fetching.
+        profiles = store.get_profiles()
+        items = fetch_mod.fetch(prefs=store.fetch_quotas(profiles))
         if not items:
             store.close_run(run_id, status="failed", error="no items fetched")
             print("no items fetched", file=sys.stderr)

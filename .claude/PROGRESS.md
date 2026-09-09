@@ -3,7 +3,7 @@
 Living document. Update at the end of each working session.
 
 **Started:** 2026-09-08
-**Current phase:** 5 — Automation
+**Current phase:** v1 — multi-user
 **Status:** Phase 1-3 done, pipeline end-to-end chal raha hai
 
 ---
@@ -56,6 +56,10 @@ Kya decide kiya aur **kyun** — taaki baad mein dobara na sochna pade.
 | 17 | Anthropic hataya, Gemini + Groq (dono free) | Paid plan abhi nahi chahiye. v0 ka kaam loop prove karna hai, uske liye free tier kaafi hai. Bonus: Phase 6 ki prompt iteration ab bilkul free |
 | 18 | Default `gemini-3.8-flash` | Groq ka free tier 6K TPM hai aur hamari ek call ~6K tokens ki hai — zero headroom. Aur Groq ka USP speed hai, jo ek-baar-roz cron ke liye bekaar hai. Judgment pe Flash behtar |
 | 19 | Dono providers support, ek nahi | `agent/llm/` ke peeche abstraction. Ek free tier badla/mara to env var se switch. Aur Phase 6 mein muft A/B milta hai. Cost: ~100 extra lines |
+| 20 | Multi-user (PRODUCT_VISION ka "single-user by design" **palat diya**) | User ne maanga: news sirf logged-in logon ko, har ek ki apni preferences. Ye v0 ka core assumption todta hai, isliye alag se likha ja raha hai |
+| 21 | Fetch shared, selection per user | Rule 1 ("ek LLM call per run") ab "ek call per user per run" hai. Fetching sabke liye ek jaisi hai toh ek baar; judgement personal hai toh share nahi ho sakti warna digest impersonal ho jaayega. Gemini free tier ~1500 req/day — dozens of users tak $0 |
+| 22 | `items` shared, scoring `verdicts` mein | Scores/summary/selection ab per-user hain, toh wo `items` se nikal ke `verdicts(user_id, item_id)` mein gaye. `items` sirf candidate pool hai |
+| 23 | OWNER_EMAIL allowlist hataya | Har user ka apna profile + verdicts hai aur RLS `auth.uid()` pe scope karta hai. Ek user doosre ka data chhoo hi nahi sakta, toh allowlist ke bachane ko kuch bacha hi nahi |
 
 ---
 

@@ -1,169 +1,110 @@
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { Empty } from "@/components/empty";
-import { currentOwner } from "@/lib/auth";
-import {
-  formatRan,
-  hostOf,
-  itemsForRun,
-  latestRun,
-  SOURCE_LABEL,
-  type Item,
-} from "@/lib/supabase";
+import { PageHeader } from "@/components/page-header";
+import { authClient, currentUser } from "@/lib/auth";
+import { formatRan, hostOf, SOURCE_LABEL } from "@/lib/options";
+import { latestRun } from "@/lib/data";
 
 export const dynamic = "force-dynamic";
 
-function Stat({ label, value }: { label: string; value: string | number }) {
-  return (
-    <div>
-      <dt className="text-xs text-muted-foreground">{label}</dt>
-      <dd className="mt-0.5 font-mono text-sm tabular-nums">{value}</dd>
-    </div>
-  );
-}
-
-/** Sub-scores as the model returned them, before weighting. */
-function SubScores({ item }: { item: Item }) {
-  const parts: [string, number | null][] = [
-    ["novel", item.novel],
-    ["conseq", item.consequential],
-    ["depth", item.depth],
-  ];
-  return (
-    <div className="flex gap-3">
-      {parts.map(([label, value]) => (
-        <span key={label} className="font-mono text-[11px] text-muted-foreground">
-          {label}{" "}
-          <span className="text-foreground/70 tabular-nums">{value ?? "–"}</span>
-        </span>
-      ))}
-    </div>
-  );
+/** Every verdict for this user on a run, rejects included — the only way to see why the
+ *  ranking landed where it did. Scoped to the signed-in user by RLS. */
+async function allVerdicts(runId: number) {
+  const supabase = await authClient();
+  const { data } = await supabase
+    .from("verdicts")
+    .select("*, items(source, url, title, blurb)")
+    .eq("run_id", runId)
+    .order("score", { ascending: false, nullsFirst: false });
+  return data ?? [];
 }
 
 export default async function Debug() {
-  // Tuning tool, not a reader page. Token counts and rejected items are not something a
-  // visitor should land on, so it needs both the flag and the owner's session.
-  if (process.env.SHOW_DEBUG !== "1" || !(await currentOwner())) notFound();
+  // Tuning tool, not a reader page: raw scores and rejected items. Needs the flag and a
+  // session; it shows the signed-in user's own verdicts, nobody else's.
+  if (process.env.SHOW_DEBUG !== "1") notFound();
+  if (!(await currentUser())) redirect("/login");
 
   const run = await latestRun();
+  if (!run) return <Empty title="No run to inspect yet" />;
 
-  if (!run) {
-    return <Empty title="No run to inspect yet" />;
-  }
-
-  const items = await itemsForRun(run.id, false);
-  const cutoff = items.filter((i) => i.selected).length;
+  const rows = await allVerdicts(run.id);
+  const cutoff = rows.filter((r) => r.selected).length;
 
   return (
     <>
-      <div className="mb-8">
-        <h1 className="text-2xl font-semibold tracking-tight">Run {run.id}</h1>
-        <p className="mt-1.5 text-sm text-muted-foreground">
-          {formatRan(run.ran_at)}
-        </p>
-      </div>
-
-      <Card className="mb-10">
-        <CardContent>
-          <dl className="grid grid-cols-2 gap-6 sm:grid-cols-4">
-            <Stat label="Status" value={run.status} />
-            <Stat label="Fetched" value={run.fetched} />
-            <Stat label="Selected" value={run.selected} />
-            <Stat
-              label="Tokens"
-              value={`${run.input_tokens ?? "–"} / ${run.output_tokens ?? "–"}`}
-            />
-          </dl>
-
-          {run.error && (
-            <>
-              <Separator className="my-5" />
-              <p className="font-mono text-xs leading-relaxed text-muted-foreground">
-                {run.error}
-              </p>
-            </>
-          )}
-        </CardContent>
-      </Card>
+      <PageHeader
+        eyebrow="Debug"
+        title={`Run ${run.id}`}
+        meta={`${formatRan(run.ran_at)} · ${rows.length} scored · ${cutoff} kept`}
+      />
 
       <ol>
-        {items.map((item, i) => (
-          <li key={item.id}>
-            {/* The cut is the whole point of this page — mark exactly where it fell. */}
-            {i === cutoff && cutoff > 0 && (
-              <div className="flex items-center gap-4 py-8">
-                <Separator className="flex-1" />
-                <span className="text-[10px] font-medium uppercase tracking-[0.15em] text-muted-foreground">
-                  cut
-                </span>
-                <Separator className="flex-1" />
-              </div>
-            )}
-
-            <div
-              className={`grid grid-cols-[3rem_1fr] gap-x-4 py-5 ${
-                item.selected ? "" : "opacity-60"
-              }`}
-            >
-              <span className="pt-0.5 text-right font-mono text-sm tabular-nums text-muted-foreground">
-                {item.score?.toFixed(1) ?? "–"}
-              </span>
-
-              <div className="min-w-0 space-y-2">
-                <a
-                  href={item.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block text-sm font-medium leading-snug decoration-muted-foreground/40 underline-offset-4 hover:underline"
-                >
-                  {item.title}
-                </a>
-
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge variant="outline" className="font-normal">
-                    {SOURCE_LABEL[item.source] ?? item.source}
-                  </Badge>
-                  <span className="text-xs text-muted-foreground">
-                    {hostOf(item.url)}
+        {rows.map((row, i) => {
+          const item = row.items as {
+            source: string;
+            url: string;
+            title: string;
+            blurb: string | null;
+          };
+          return (
+            <li key={row.id}>
+              {i === cutoff && cutoff > 0 && (
+                <div className="flex items-center gap-4 py-8">
+                  <span className="h-px flex-1 bg-border" />
+                  <span className="text-[10px] font-medium uppercase tracking-[0.15em] text-muted-foreground">
+                    cut
                   </span>
-                  {!item.blurb && (
-                    <Tooltip>
-                      <TooltipTrigger
-                        render={
-                          <Badge
-                            variant="secondary"
-                            className="cursor-help font-normal"
-                          >
-                            no blurb
-                          </Badge>
-                        }
-                      />
-                      <TooltipContent>
-                        Judged on the title alone — 15 of 20 items arrive this way
-                      </TooltipContent>
-                    </Tooltip>
+                  <span className="h-px flex-1 bg-border" />
+                </div>
+              )}
+
+              <div
+                className={`grid grid-cols-[3rem_1fr] gap-x-4 py-5 ${
+                  row.selected ? "" : "opacity-60"
+                }`}
+              >
+                <span className="pt-0.5 text-right font-mono text-sm tabular-nums text-muted-foreground">
+                  {row.score?.toFixed(1) ?? "–"}
+                </span>
+
+                <div className="min-w-0 space-y-2">
+                  <a
+                    href={item.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block text-sm font-medium leading-snug hover:underline"
+                  >
+                    {item.title}
+                  </a>
+                  <p className="flex flex-wrap items-center gap-x-2 font-mono text-[11px] uppercase tracking-wider text-muted-foreground">
+                    <span>{SOURCE_LABEL[item.source] ?? item.source}</span>
+                    <span className="text-muted-foreground/40">/</span>
+                    <span className="normal-case tracking-normal">
+                      {hostOf(item.url)}
+                    </span>
+                    {!item.blurb && (
+                      <>
+                        <span className="text-muted-foreground/40">/</span>
+                        <span>no blurb</span>
+                      </>
+                    )}
+                  </p>
+                  <p className="flex gap-3 font-mono text-[11px] text-muted-foreground">
+                    <span>novel {row.novel ?? "–"}</span>
+                    <span>conseq {row.consequential ?? "–"}</span>
+                    <span>depth {row.depth ?? "–"}</span>
+                  </p>
+                  {row.reason && (
+                    <p className="text-pretty text-xs leading-relaxed text-muted-foreground">
+                      {row.reason}
+                    </p>
                   )}
                 </div>
-
-                <SubScores item={item} />
-
-                {item.reason && (
-                  <p className="text-pretty text-xs leading-relaxed text-muted-foreground">
-                    {item.reason}
-                  </p>
-                )}
               </div>
-            </div>
-          </li>
-        ))}
+            </li>
+          );
+        })}
       </ol>
     </>
   );

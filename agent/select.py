@@ -112,12 +112,64 @@ def score(verdict_item: dict, weights: dict | None = None) -> float:
 
 def select(run_id: int, *, provider_name: str | None = None,
            dry_run: bool = False, count: int | None = None) -> int:
-    candidates = store.get_candidates(run_id)
-    if not candidates:
+    """Score the shared pool once per user.
+
+    Fetching is shared because it is identical for everyone. Selection is not: it is the
+    output of one person's preferences, so it is the one thing that genuinely cannot be
+    reused across users (see docs/schema-v1-multiuser.sql).
+    """
+    pool = store.get_candidates(run_id)
+    if not pool:
         print(f"run {run_id} has no candidates", file=sys.stderr)
         return 1
 
-    prefs = store.get_preferences()
+    profiles = store.get_profiles()
+    if not profiles:
+        print("no users signed up — nothing to select for", file=sys.stderr)
+        store.close_run(run_id, status="ok", fetched=len(pool), selected=0,
+                        error="no users")
+        return 0
+
+    failures = 0
+    total_in = total_out = 0
+
+    for prefs in profiles:
+        try:
+            result = select_for_user(run_id, pool, prefs,
+                                     provider_name=provider_name,
+                                     dry_run=dry_run, count=count)
+            if dry_run:
+                return 0
+            total_in += result[0]
+            total_out += result[1]
+        except Exception as exc:
+            # One user's failure must not cost everyone else their digest.
+            failures += 1
+            print(f"  ! {prefs.get('email') or prefs['id']}: "
+                  f"{type(exc).__name__}: {str(exc)[:120]}", file=sys.stderr)
+
+    store.close_run(
+        run_id,
+        status="partial" if failures else "ok",
+        fetched=len(pool),
+        selected=len(profiles) - failures,
+        input_tokens=total_in,
+        output_tokens=total_out,
+        error=f"{failures} of {len(profiles)} users failed" if failures else None,
+    )
+    print(f"\n{len(profiles) - failures}/{len(profiles)} users · "
+          f"{total_in} in / {total_out} out tokens", file=sys.stderr)
+    return 1 if failures == len(profiles) else 0
+
+
+def select_for_user(run_id: int, pool: list[dict], prefs: dict, *,
+                    provider_name: str | None = None,
+                    dry_run: bool = False,
+                    count: int | None = None) -> tuple[int, int]:
+    candidates = store.quota_slice(pool, prefs)
+    if not candidates:
+        return (0, 0)
+
     if count is None:
         count = prefs.get("select_count") or SELECT_COUNT
     count = max(1, min(count, len(candidates)))
@@ -135,9 +187,9 @@ def select(run_id: int, *, provider_name: str | None = None,
         print(user)
         return 0
 
-    print(f"{get_provider(provider_name).name} — {len(candidates)} candidates, "
-          f"level={prefs.get('level')}, weights="
-          + "/".join(f"{v:g}" for v in weights.values()), file=sys.stderr)
+    who = prefs.get("email") or prefs["id"]
+    print(f"  {who} — {len(candidates)} candidates, level={prefs.get('level')}, "
+          f"weights=" + "/".join(f"{v:g}" for v in weights.values()), file=sys.stderr)
 
     verdict, fallback_note = call_with_fallback(
         system, user, verdict_schema(), provider_name)
@@ -169,7 +221,7 @@ def select(run_id: int, *, provider_name: str | None = None,
         v = row["_v"]
         chosen = rank <= count and row["_score"] >= min_score
         updates.append({
-            "id": row["id"],
+            "item_id": row["id"],
             "novel": v.get("novel"),
             "consequential": v.get("consequential"),
             "depth": v.get("depth"),

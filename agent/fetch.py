@@ -23,6 +23,7 @@ SOURCES = (
 
 
 def fetch(total: int = TOTAL, prefs: dict | None = None) -> list[dict]:
+    """`prefs` here carries only source quotas — the maximum any user asked for."""
     """Collect from every source, drop duplicates, trim to `total`.
 
     A source that raises is skipped with a warning. One dead API must not cost us the run

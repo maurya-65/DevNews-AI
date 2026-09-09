@@ -1,9 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { currentOwner } from "@/lib/auth";
-import { admin } from "@/lib/supabase-admin";
-import { AVOID_OPTIONS, LEVEL_OPTIONS, TOPIC_OPTIONS } from "@/lib/supabase";
+import { authClient, currentUser } from "@/lib/auth";
+import { AVOID_OPTIONS, LEVEL_OPTIONS, TOPIC_OPTIONS } from "@/lib/options";
 
 const TOPIC_IDS = new Set<string>(TOPIC_OPTIONS.map((t) => t.id));
 const AVOID_IDS = new Set<string>(AVOID_OPTIONS.map((a) => a.id));
@@ -26,15 +25,13 @@ export async function saveSettings(
   _prev: SaveResult | null,
   form: FormData,
 ): Promise<SaveResult> {
-  // Checked here, not only in the page. A server action is a public POST endpoint —
-  // hiding the form does nothing, and this one writes with the service key.
-  if (!(await currentOwner())) {
-    return { ok: false, message: "Sign in as the owner to change these." };
-  }
+  // Checked here, not only in the page. A server action is a public POST endpoint, so
+  // hiding the form protects nothing.
+  const user = await currentUser();
+  if (!user) return { ok: false, message: "Sign in to change these." };
 
-  // Validated against the known option lists rather than trusted. This action runs with
-  // the service key, so an unchecked value would reach the DB — and from there go
-  // straight into the prompt.
+  // Values are validated against the known option lists rather than trusted — whatever
+  // lands here goes into a prompt.
   const topics = form.getAll("topics").map(String).filter((t) => TOPIC_IDS.has(t));
   const avoid = form.getAll("avoid").map(String).filter((a) => AVOID_IDS.has(a));
 
@@ -43,7 +40,8 @@ export async function saveSettings(
   const profile = String(form.get("profile") ?? "").trim().slice(0, 2000) || null;
 
   const row = {
-    id: 1,
+    id: user.id,
+    email: user.email ?? null,
     profile,
     topics,
     avoid,
@@ -67,7 +65,11 @@ export async function saveSettings(
     };
   }
 
-  const { error } = await admin().from("preferences").upsert(row, { onConflict: "id" });
+  // The session client, not the service key: RLS enforces that a user can only write
+  // their own row, so the database is the thing stopping cross-user writes rather than
+  // this function remembering to.
+  const supabase = await authClient();
+  const { error } = await supabase.from("profiles").upsert(row, { onConflict: "id" });
   if (error) return { ok: false, message: error.message };
 
   revalidatePath("/settings");

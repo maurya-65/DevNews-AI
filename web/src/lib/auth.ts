@@ -40,17 +40,13 @@ export async function currentUser() {
   return user;
 }
 
-/** Single-user by design (PRODUCT_VISION), so "signed in" is not enough — the account
- *  has to be the owner's. Anyone can sign in with GitHub; only this address gets write
- *  access. With OWNER_EMAIL unset, the first person to sign in would own the settings,
- *  so an unset value denies rather than allows. */
-export function isOwner(email: string | null | undefined) {
-  const owner = process.env.OWNER_EMAIL?.trim().toLowerCase();
-  if (!owner || !email) return false;
-  return email.trim().toLowerCase() === owner;
-}
-
-export async function currentOwner() {
+/** Signed in is now enough.
+ *
+ *  The single-owner allowlist is gone: every account has its own profile row and its own
+ *  verdicts, and RLS scopes both to auth.uid(). There is nothing left for one user to
+ *  reach in another's data, so there is nothing left for an allowlist to protect.
+ */
+export async function requireUser() {
   const user = await currentUser();
-  return user && isOwner(user.email) ? user : null;
+  return user;
 }

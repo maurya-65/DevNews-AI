@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { motion, useReducedMotion } from "motion/react";
-import { hostOf, SOURCE_LABEL, type Item } from "@/lib/supabase";
+import { hostOf, SOURCE_LABEL, type Item } from "@/lib/options";
 
 const ORDER = ["hn", "lobsters", "blog"] as const;
 
@@ -120,7 +120,7 @@ export function DigestList({ items }: { items: Item[] }) {
       {/* Keyed on the filter so the CSS entrance replays when the list changes. */}
       <ol key={source} className="space-y-10">
         {shown.map((item, i) => (
-          <Row key={item.id} item={item} index={i} />
+          <Row key={item.item_id} item={item} index={i} />
         ))}
       </ol>
     </>

@@ -10,12 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  AVOID_OPTIONS,
-  LEVEL_OPTIONS,
-  TOPIC_OPTIONS,
-  type Preferences,
-} from "@/lib/supabase";
+import { AVOID_OPTIONS, LEVEL_OPTIONS, TOPIC_OPTIONS, type Profile } from "@/lib/options";
 import { saveSettings, type SaveResult } from "./actions";
 
 const TABS = [
@@ -118,7 +113,7 @@ function NumberField({
   );
 }
 
-export function SettingsForm({ prefs }: { prefs: Preferences }) {
+export function SettingsForm({ prefs }: { prefs: Profile }) {
   const [state, action, pending] = useActionState<SaveResult | null, FormData>(
     saveSettings,
     null,

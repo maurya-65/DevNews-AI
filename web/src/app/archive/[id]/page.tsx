@@ -1,8 +1,10 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { DigestList } from "@/components/digest-list";
 import { PageHeader } from "@/components/page-header";
-import { formatDay, itemsForRun, runById } from "@/lib/supabase";
+import { currentUser } from "@/lib/auth";
+import { formatDay } from "@/lib/options";
+import { itemsForRun, scoredCount } from "@/lib/data";
 
 export const dynamic = "force-dynamic";
 
@@ -11,11 +13,18 @@ export default async function ArchivedDigest({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { id } = await params;
-  const run = await runById(Number(id));
-  if (!run) notFound();
+  if (!(await currentUser())) redirect("/login");
 
-  const items = await itemsForRun(run.id, true);
+  const { id } = await params;
+  const runId = Number(id);
+  if (!Number.isFinite(runId)) notFound();
+
+  // RLS scopes both of these to the signed-in user, so another user's run id simply
+  // comes back empty rather than leaking anything.
+  const [items, scored] = await Promise.all([
+    itemsForRun(runId),
+    scoredCount(runId),
+  ]);
   if (!items.length) notFound();
 
   return (
@@ -29,8 +38,8 @@ export default async function ArchivedDigest({
 
       <PageHeader
         eyebrow="Archive"
-        title={formatDay(run.ran_at)}
-        meta={`${items.length} of ${run.fetched} kept`}
+        title={formatDay(items[0].ran_at)}
+        meta={`${items.length} of ${scored} kept`}
       />
 
       <DigestList items={items} />

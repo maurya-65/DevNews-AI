@@ -1,7 +1,10 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { Empty } from "@/components/empty";
 import { PageHeader } from "@/components/page-header";
-import { digestRuns, formatDay, type DigestRun } from "@/lib/supabase";
+import { currentUser } from "@/lib/auth";
+import { formatDay, type MyRun } from "@/lib/options";
+import { myRuns } from "@/lib/data";
 
 export const dynamic = "force-dynamic";
 
@@ -14,8 +17,8 @@ function monthOf(iso: string) {
 }
 
 /** Group by month so a long archive stays scannable instead of becoming one flat wall. */
-function groupByMonth(runs: DigestRun[]) {
-  const groups: { month: string; runs: DigestRun[] }[] = [];
+function groupByMonth(runs: MyRun[]) {
+  const groups: { month: string; runs: MyRun[] }[] = [];
   for (const run of runs) {
     const month = monthOf(run.ran_at);
     const last = groups.at(-1);
@@ -26,13 +29,18 @@ function groupByMonth(runs: DigestRun[]) {
 }
 
 export default async function Archive() {
-  const runs = await digestRuns();
+  if (!(await currentUser())) redirect("/login");
+
+  const runs = await myRuns();
 
   if (!runs.length) {
     return (
       <>
         <PageHeader eyebrow="Archive" title="Nothing archived" />
-        <Empty title="No past digests" hint="Days appear here once they produce something." />
+        <Empty
+          title="No past digests"
+          hint="Days appear here once a run produces something for you."
+        />
       </>
     );
   }
@@ -63,7 +71,7 @@ export default async function Archive() {
                     </span>
                     <span className="shrink-0 font-mono text-xs tabular-nums text-muted-foreground">
                       {run.selected}
-                      <span className="text-muted-foreground/40"> / {run.fetched}</span>
+                      <span className="text-muted-foreground/40"> / {run.scored}</span>
                     </span>
                   </Link>
                 </li>

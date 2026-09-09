@@ -9,7 +9,7 @@ const STEPS = [
   {
     n: "02",
     title: "Judge",
-    body: "One model call scores every candidate on novelty, consequence and depth — including the ones it rejects, so the ranking can be audited.",
+    body: "The sources are shared; the judgement is not. Every candidate is scored against your preferences — novelty, consequence and depth, rejects included.",
   },
   {
     n: "03",
@@ -18,7 +18,7 @@ const STEPS = [
   },
 ];
 
-export function Hero({ signedIn }: { signedIn: boolean }) {
+export function Hero() {
   return (
     <section className="mb-20">
       <p className="animate-in fade-in slide-in-from-bottom-2 font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground duration-500 fill-mode-backwards">
@@ -31,23 +31,17 @@ export function Hero({ signedIn }: { signedIn: boolean }) {
 
       <p className="mt-6 max-w-[58ch] animate-in fade-in slide-in-from-bottom-2 text-pretty text-base leading-[1.7] text-muted-foreground delay-150 duration-500 fill-mode-backwards">
         CS news is not scarce, it is overwhelming. The scarce thing is judgement —
-        knowing which few things are worth your attention today, and being honest when
-        the answer is none. This reads about forty headlines every morning and keeps the
-        handful that earn it.
+        knowing which few things are worth <em className="not-italic text-foreground">your</em>{" "}
+        attention today, and being honest when the answer is none. This reads about forty
+        headlines every morning and keeps only the handful that earn it.
       </p>
 
       <div className="mt-8 flex animate-in fade-in slide-in-from-bottom-2 flex-wrap items-center gap-3 text-sm delay-200 duration-500 fill-mode-backwards">
         <Link
-          href="#today"
+          href="/login"
           className="rounded-md bg-foreground px-4 py-2 font-medium text-background transition-opacity hover:opacity-90"
         >
-          Read today
-        </Link>
-        <Link
-          href={signedIn ? "/settings" : "/login"}
-          className="rounded-md border border-border px-4 py-2 transition-colors hover:bg-accent"
-        >
-          {signedIn ? "Tune it" : "Owner sign in"}
+          Get your digest
         </Link>
         <a
           href="https://github.com/maurya-65/DevNews-AI"

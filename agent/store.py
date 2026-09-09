@@ -57,6 +57,27 @@ def get_candidates(run_id: int) -> list[dict]:
             .eq("run_id", run_id).order("id").execute().data)
 
 
+def quota_slice(items: list[dict], prefs: dict) -> list[dict]:
+    """Trim the shared pool to what this user asked for, per source.
+
+    The pool is fetched for the most demanding profile, so a user who wants fewer HN
+    items should not be scored against everyone else's extras.
+    """
+    caps = {"hn": prefs.get("hn_quota", 10),
+            "lobsters": prefs.get("lobsters_quota", 5),
+            "blog": prefs.get("blogs_quota", 5)}
+    seen: dict[str, int] = {}
+    kept = []
+    for item in items:
+        source = item["source"]
+        taken = seen.get(source, 0)
+        if taken >= caps.get(source, 0):
+            continue
+        seen[source] = taken + 1
+        kept.append(item)
+    return kept
+
+
 def close_run(run_id: int, *, status: str, fetched: int = 0, selected: int = 0,
               error: str | None = None, input_tokens: int | None = None,
               output_tokens: int | None = None, cost_usd: float = 0) -> None:
@@ -72,20 +93,22 @@ def close_run(run_id: int, *, status: str, fetched: int = 0, selected: int = 0,
     }).eq("id", run_id).execute()
 
 
-def update_verdicts(run_id: int, updates: list[dict]) -> None:
-    """Write scores back, resetting selection first.
+def update_verdicts(run_id: int, user_id: str, updates: list[dict]) -> None:
+    """Write one user's verdicts for this run.
 
-    The reset matters: without it, re-running selection on the same run leaves the previous
-    winners flagged and the digest accumulates instead of being replaced.
+    Upsert on (user_id, item_id) so re-running selection replaces that user's verdicts
+    instead of accumulating them. Other users' rows are untouched.
     """
-    client().table("items").update(
-        {"selected": False, "position": None}).eq("run_id", run_id).execute()
+    if not updates:
+        return
+    rows = [{**row, "run_id": run_id, "user_id": user_id} for row in updates]
+    client().table("verdicts").upsert(rows, on_conflict="user_id,item_id").execute()
 
-    for row in updates:
-        # Copy rather than pop: mutating the caller's dicts is a side effect they can't
-        # see, and callers do read these again afterwards.
-        fields = {k: v for k, v in row.items() if k != "id"}
-        client().table("items").update(fields).eq("id", row["id"]).execute()
+
+def get_candidate_items(run_id: int) -> list[dict]:
+    """The shared pool for a run. Identical for every user."""
+    return (client().table("items").select("*")
+            .eq("run_id", run_id).order("id").execute().data)
 
 
 DEFAULT_PREFERENCES = {
@@ -101,18 +124,31 @@ DEFAULT_PREFERENCES = {
 }
 
 
-def get_preferences() -> dict:
-    """The single preferences row, or defaults if the table isn't there yet.
+def get_profiles() -> list[dict]:
+    """Every user the digest runs for.
 
-    Never fails the run: a missing table or an empty row means "use the defaults", not
-    "no digest today".
+    One row per signed-up account, created by a trigger on auth.users. An empty list
+    means nobody has signed up yet — not an error, just nothing to do.
     """
     try:
-        rows = client().table("preferences").select("*").eq("id", 1).execute().data
+        rows = client().table("profiles").select("*").order("created_at").execute().data
     except Exception as exc:
-        print(f"  preferences unavailable ({type(exc).__name__}), using defaults")
-        return dict(DEFAULT_PREFERENCES)
+        print(f"  profiles unavailable ({type(exc).__name__})")
+        return []
+    return [{**DEFAULT_PREFERENCES, **{k: v for k, v in r.items() if v is not None}}
+            for r in rows]
 
-    if not rows:
-        return dict(DEFAULT_PREFERENCES)
-    return {**DEFAULT_PREFERENCES, **{k: v for k, v in rows[0].items() if v is not None}}
+
+def fetch_quotas(profiles: list[dict]) -> dict:
+    """Source quotas for the shared fetch: the largest any user asked for.
+
+    Fetching once for everyone means the pool has to satisfy the most demanding profile;
+    a user who wants fewer simply gets scored against fewer.
+    """
+    if not profiles:
+        return {k: DEFAULT_PREFERENCES[k]
+                for k in ("hn_quota", "lobsters_quota", "blogs_quota")}
+    return {
+        key: max(p.get(key, DEFAULT_PREFERENCES[key]) for p in profiles)
+        for key in ("hn_quota", "lobsters_quota", "blogs_quota")
+    }
