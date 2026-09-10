@@ -56,7 +56,7 @@ export default async function Archive() {
       <div className="space-y-10">
         {groupByMonth(runs).map(({ month, runs: monthRuns }) => (
           <section key={month}>
-            <h2 className="mb-1 font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+            <h2 className="mb-1 font-mono text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
               {month}
             </h2>
             <ul className="divide-y divide-border/60">

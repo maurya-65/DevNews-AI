@@ -10,52 +10,61 @@ const ORDER = ["hn", "lobsters", "blog"] as const;
  *
  *  Framer's `initial` prop renders opacity 0 into the server HTML, so a reader whose JS
  *  hasn't run sees nothing. CSS keyframes animate without JS and the text is present
- *  either way. Motion is kept for the tab underline, where the effect genuinely needs
- *  measurement and there is nothing to read if JS is off anyway.
+ *  either way. Motion drives the things that only exist once JS is running anyway —
+ *  hover, tap and the tab underline — where there is nothing to lose.
  */
 function Row({ item, index }: { item: Item; index: number }) {
+  const reduced = useReducedMotion();
+
   return (
-    <li
-      className="group animate-in fade-in slide-in-from-bottom-3 duration-500 fill-mode-backwards"
-      // Stagger in reading order. Capped so a long list doesn't crawl in.
-      style={{ animationDelay: `${Math.min(index, 8) * 50}ms` }}
+    <motion.li
+      className="group animate-in fade-in slide-in-from-bottom-3 fill-mode-backwards py-7 first:pt-0 last:pb-0"
+      style={{
+        // Stagger in reading order, capped so a long list doesn't crawl in.
+        animationDelay: `${Math.min(index, 8) * 55}ms`,
+        animationDuration: "620ms",
+        animationTimingFunction: "cubic-bezier(0.22, 1, 0.36, 1)",
+      }}
+      whileHover={reduced ? undefined : { x: 3 }}
+      transition={{ type: "spring", stiffness: 380, damping: 30 }}
     >
       <a
         href={item.url}
         target="_blank"
         rel="noopener noreferrer"
-        className="block rounded-lg outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-4 focus-visible:ring-offset-background"
+        className="block rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-4 focus-visible:ring-offset-background"
       >
-        <div className="flex items-baseline gap-4">
-          <span className="w-6 shrink-0 font-mono text-xs tabular-nums text-muted-foreground/50 transition-colors group-hover:text-muted-foreground">
+        <div className="flex gap-5">
+          <span className="mt-1.5 w-6 shrink-0 font-mono text-[11px] tabular-nums text-muted-foreground/45 transition-colors duration-300 group-hover:text-signal">
             {String(index + 1).padStart(2, "0")}
           </span>
-          <h2 className="text-balance text-lg font-medium leading-snug tracking-[-0.01em] decoration-foreground/25 underline-offset-[6px] transition-colors group-hover:underline">
-            {item.title}
-          </h2>
-        </div>
 
-        <div className="mt-2 pl-10">
-          <p className="flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-[11px] uppercase tracking-wider text-muted-foreground">
-            <span>{SOURCE_LABEL[item.source] ?? item.source}</span>
-            <span className="text-muted-foreground/40">/</span>
-            <span className="normal-case tracking-normal">{hostOf(item.url)}</span>
-            {item.points !== null && (
-              <>
-                <span className="text-muted-foreground/40">/</span>
-                <span className="tabular-nums">{item.points} pts</span>
-              </>
+          <div className="min-w-0 flex-1">
+            <h2 className="text-pretty text-[21px] font-medium leading-[1.3] tracking-[-0.018em] decoration-foreground/20 underline-offset-[7px] transition-colors group-hover:underline">
+              {item.title}
+            </h2>
+
+            {item.summary && (
+              <p className="mt-2.5 max-w-[60ch] text-pretty text-[15px] leading-[1.75] text-muted-foreground">
+                {item.summary}
+              </p>
             )}
-          </p>
 
-          {item.summary && (
-            <p className="mt-3 max-w-[62ch] text-pretty text-[15px] leading-[1.7] text-foreground/75">
-              {item.summary}
+            <p className="mt-3.5 flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-[11px] uppercase tracking-[0.1em] text-muted-foreground/70">
+              <span>{SOURCE_LABEL[item.source] ?? item.source}</span>
+              <span className="text-muted-foreground/30">/</span>
+              <span className="normal-case tracking-normal">{hostOf(item.url)}</span>
+              {item.points !== null && (
+                <>
+                  <span className="text-muted-foreground/30">/</span>
+                  <span className="tabular-nums">{item.points}</span>
+                </>
+              )}
             </p>
-          )}
+          </div>
         </div>
       </a>
-    </li>
+    </motion.li>
   );
 }
 
@@ -79,15 +88,16 @@ export function DigestList({ items }: { items: Item[] }) {
   return (
     <>
       {present.length > 1 && (
-        <div className="mb-10 flex flex-wrap items-center gap-1 border-b border-border/60 pb-px">
+        <div className="mb-9 flex flex-wrap items-center gap-1 border-b border-border/60 pb-px">
           {tabs.map((tab) => {
             const active = source === tab.id;
             return (
-              <button
+              <motion.button
                 key={tab.id}
                 type="button"
                 onClick={() => setSource(tab.id)}
                 aria-pressed={active}
+                whileTap={reduced ? undefined : { scale: 0.97 }}
                 className={`relative px-3 py-2 text-sm transition-colors ${
                   active
                     ? "text-foreground"
@@ -96,14 +106,14 @@ export function DigestList({ items }: { items: Item[] }) {
               >
                 <span className="relative z-10">
                   {tab.label}
-                  <span className="ml-1.5 font-mono text-[11px] tabular-nums text-muted-foreground/60">
+                  <span className="ml-1.5 font-mono text-[11px] tabular-nums text-muted-foreground/55">
                     {tab.count}
                   </span>
                 </span>
                 {active && (
                   <motion.span
                     layoutId="digest-tab"
-                    className="absolute inset-x-0 -bottom-px h-px bg-foreground"
+                    className="absolute inset-x-0 -bottom-px h-px bg-signal"
                     transition={
                       reduced
                         ? { duration: 0 }
@@ -111,14 +121,14 @@ export function DigestList({ items }: { items: Item[] }) {
                     }
                   />
                 )}
-              </button>
+              </motion.button>
             );
           })}
         </div>
       )}
 
       {/* Keyed on the filter so the CSS entrance replays when the list changes. */}
-      <ol key={source} className="space-y-10">
+      <ol key={source} className="divide-y divide-border/50">
         {shown.map((item, i) => (
           <Row key={item.item_id} item={item} index={i} />
         ))}

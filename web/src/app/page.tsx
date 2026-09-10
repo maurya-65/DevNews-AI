@@ -1,6 +1,8 @@
+import { redirect } from "next/navigation";
+import { DailySeal } from "@/components/daily-seal";
 import { DigestList } from "@/components/digest-list";
 import { Empty } from "@/components/empty";
-import { Hero } from "@/components/hero";
+import { PageHeader } from "@/components/page-header";
 import { currentUser } from "@/lib/auth";
 import { formatDay, formatRan } from "@/lib/options";
 import { itemsForRun, latestRun, myProfile, scoredCount } from "@/lib/data";
@@ -9,25 +11,12 @@ import { itemsForRun, latestRun, myProfile, scoredCount } from "@/lib/data";
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
-  const user = await currentUser();
-
-  // Signed out: the pitch only. The digest itself is personal now, so there is nothing
-  // here to show a visitor.
-  if (!user) return <Hero />;
+  // The digest is personal, so there is no signed-out version of this page to fall back
+  // to. proxy.ts already turns anonymous requests away; this is the second check, for
+  // the case where the cookie expires between the edge and here.
+  if (!(await currentUser())) redirect("/login");
 
   return <Digest />;
-}
-
-/** Section heading. Smaller than PageHeader — the day is the subject, not the site. */
-function DigestHeading({ day, meta }: { day: string; meta: string }) {
-  return (
-    <div className="mb-10 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2 border-b border-border pb-4">
-      <h1 className="text-2xl font-semibold tracking-tight">{day}</h1>
-      <p className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">
-        {meta}
-      </p>
-    </div>
-  );
 }
 
 async function Digest() {
@@ -36,7 +25,7 @@ async function Digest() {
   if (!run) {
     return (
       <>
-        <DigestHeading day="Nothing yet" meta="no runs" />
+        <PageHeader eyebrow="Today" title="Nothing yet" meta="no runs" />
         <Empty
           title="No digest yet"
           hint="Your first digest arrives after the next run. Set your preferences meanwhile and it will be built around them."
@@ -58,9 +47,11 @@ async function Digest() {
   if (!items.length) {
     return (
       <>
-        <DigestHeading
-          day={formatDay(run.ran_at)}
+        <PageHeader
+          eyebrow="Today"
+          title={formatDay(run.ran_at)}
           meta={`${scored} candidates · none cleared ${minScore}`}
+          aside={<DailySeal scored={scored} kept={0} />}
         />
         <Empty
           title="Quiet day"
@@ -74,13 +65,15 @@ async function Digest() {
 
   return (
     <>
-      <DigestHeading
-        day={formatDay(run.ran_at)}
+      <PageHeader
+        eyebrow="Today"
+        title={formatDay(run.ran_at)}
         meta={
           thin
             ? `${items.length} of ${scored} cleared the bar`
             : `${items.length} of ${scored} kept · ${formatRan(run.ran_at)}`
         }
+        aside={<DailySeal scored={scored} kept={items.length} />}
       />
       <DigestList items={items} />
     </>
