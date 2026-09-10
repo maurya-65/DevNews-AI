@@ -1,18 +1,14 @@
 "use server";
 
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { authClient } from "@/lib/auth";
+import { admin } from "@/lib/supabase-admin";
+import { siteOrigin } from "@/lib/site";
 import { ALL_PROVIDERS, type ProviderId } from "@/lib/providers";
 
 export type AuthResult = { ok: boolean; message: string };
 
 const MIN_PASSWORD = 8;
-
-async function origin() {
-  const h = await headers();
-  return h.get("origin") ?? "http://localhost:3000";
-}
 
 function readCredentials(form: FormData) {
   return {
@@ -29,13 +25,22 @@ function friendly(message: string) {
     return "That email and password don't match.";
   }
   if (m.includes("email not confirmed")) {
-    return "Check your inbox and confirm your email first.";
+    // Nothing here ever sends a confirmation mail, so this message can only mean the
+    // Supabase project still has "Confirm email" switched on. Say that, not "check
+    // your inbox" — there is no inbox to check.
+    return "This project still has email confirmation switched on. Turn it off in Supabase → Authentication → Sign In / Providers → Email.";
   }
   if (m.includes("already registered")) {
-    return "That email already has an account. Try signing in.";
+    return "That email already has an account, and that password doesn't match it.";
   }
   if (m.includes("rate limit") || m.includes("too many")) {
     return "Too many attempts. Wait a minute and try again.";
+  }
+  // The button is driven by NEXT_PUBLIC_AUTH_PROVIDERS, which is just a list of strings
+  // — it cannot know whether the provider was ever configured in Supabase. This is what
+  // that mismatch looks like, and the generic text gives no clue where to go.
+  if (m.includes("provider is not enabled") || m.includes("unsupported provider")) {
+    return "That provider isn't switched on in Supabase yet — add its client ID and secret under Authentication → Sign In / Providers.";
   }
   return message;
 }
@@ -67,30 +72,69 @@ export async function signUp(
     return { ok: false, message: "That doesn't look like an email address." };
   }
   if (password.length < MIN_PASSWORD) {
-    return {
-      ok: false,
-      message: `Use at least ${MIN_PASSWORD} characters.`,
-    };
+    return { ok: false, message: `Use at least ${MIN_PASSWORD} characters.` };
   }
   if (password !== confirm) {
     return { ok: false, message: "The two passwords don't match." };
   }
 
   const supabase = await authClient();
-  const { data, error } = await supabase.auth.signUp({
+
+  // Someone who already has an account and types it into this form meant to sign in, so
+  // do that instead of refusing them. Trying it first is also the only reliable way to
+  // tell an existing account from a new one: with enumeration protection on, signUp
+  // answers both cases identically.
+  const { error: existing } = await supabase.auth.signInWithPassword({
     email,
     password,
-    options: { emailRedirectTo: `${await origin()}/auth/callback` },
   });
+  if (!existing) redirect("/");
+
+  const { data, error } = await supabase.auth.signUp({ email, password });
   if (error) return { ok: false, message: friendly(error.message) };
 
-  // With email confirmation on, signUp returns a user but no session. Saying so is
-  // better than a silent no-op that looks like a failure.
-  if (data.session) redirect("/settings");
-  return {
-    ok: true,
-    message: "Account created. Check your email to confirm it, then sign in.",
-  };
+  // A genuinely new account comes back already signed in. No session means one of two
+  // things, and they need different answers.
+  if (!data.session) {
+    // Enumeration protection returns a decoy user with an empty identities array for an
+    // address that is already taken, rather than an error.
+    if (data.user?.identities?.length === 0) {
+      return {
+        ok: false,
+        message:
+          "That email already has an account, and that password doesn't match it. Sign in, or reset the password.",
+      };
+    }
+    if (!data.user) {
+      return { ok: false, message: "Signup came back with no user at all." };
+    }
+
+    // The project still has "Confirm email" switched on. Rather than parking the user on
+    // an inbox this app never wanted to involve, mark the address confirmed with the
+    // service key and sign them in. Turning the setting off is still worth doing —
+    // Supabase sends the mail before we get here — but the account works either way.
+    try {
+      const { error: confirmError } = await admin().auth.admin.updateUserById(
+        data.user.id,
+        { email_confirm: true },
+      );
+      if (confirmError) throw new Error(confirmError.message);
+    } catch (e) {
+      const why = e instanceof Error ? e.message : "unknown error";
+      return {
+        ok: false,
+        message: `Account created, but confirming it automatically failed (${why}). Turn off "Confirm email" in Supabase → Authentication → Sign In / Providers → Email.`,
+      };
+    }
+
+    const { error: retry } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+    if (retry) return { ok: false, message: friendly(retry.message) };
+  }
+
+  redirect("/settings");
 }
 
 export async function signInWithProvider(formData: FormData) {
@@ -100,12 +144,14 @@ export async function signInWithProvider(formData: FormData) {
   const supabase = await authClient();
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: raw as ProviderId,
-    options: { redirectTo: `${await origin()}/auth/callback` },
+    options: { redirectTo: `${await siteOrigin()}/auth/callback` },
   });
 
   if (error || !data.url) {
     redirect(
-      `/login?error=${encodeURIComponent(error?.message ?? "That provider isn't set up yet.")}`,
+      `/login?error=${encodeURIComponent(
+        friendly(error?.message ?? "That provider isn't set up yet."),
+      )}`,
     );
   }
   redirect(data.url);
@@ -122,7 +168,7 @@ export async function requestPasswordReset(
 
   const supabase = await authClient();
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${await origin()}/auth/callback?next=/auth/reset`,
+    redirectTo: `${await siteOrigin()}/auth/callback?next=/auth/reset`,
   });
   if (error) return { ok: false, message: friendly(error.message) };
 
@@ -158,5 +204,5 @@ export async function updatePassword(
 export async function signOut() {
   const supabase = await authClient();
   await supabase.auth.signOut();
-  redirect("/");
+  redirect("/login");
 }
