@@ -22,3 +22,7 @@ Thumbs.db
 .idea/
 .vscode/
 
+
+# design canvas: the .dc.html artboards and canvas.json are the source; the seeded
+# page is a 2.5 MB generated payload rebuilt by the seeding helper on every change.
+design/devnews-directions.html

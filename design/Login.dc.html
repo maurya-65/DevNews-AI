@@ -1,0 +1,107 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap">
+  <style>
+    body { margin: 0; background: #0a0a0a; -webkit-font-smoothing: antialiased; }
+    a { color: #fafafa; text-decoration: none; }
+    a:hover { color: #ffffff; }
+  </style>
+</helmet>
+<div style="width: 960px; height: 820px; background: #0a0a0a; color: #fafafa; font-family: 'Geist', system-ui, sans-serif; display: flex;">
+
+  <div style="width: 430px; flex-shrink: 0; padding: 48px 52px; display: flex; flex-direction: column;">
+    <div style="font-size: 14px; font-weight: 600; letter-spacing: -0.015em; margin-bottom: 52px;">DevNews</div>
+
+    <h1 style="margin: 0; font-size: 26px; font-weight: 600; letter-spacing: -0.025em; line-height: 1.2;">Sign in</h1>
+    <p style="margin: 9px 0 0; font-size: 14px; line-height: 1.6; color: #a1a1a1;">Your preferences decide what survives the cut each morning.</p>
+
+    <div style="display: flex; gap: 22px; margin-top: 30px; border-bottom: 1px solid rgba(250,250,250,0.10);">
+      <div style="padding-bottom: 11px; font-size: 14px; font-weight: 500; color: #fafafa; border-bottom: 1px solid #fafafa; margin-bottom: -1px;">Sign in</div>
+      <div style="padding-bottom: 11px; font-size: 14px; color: #a1a1a1;">Create account</div>
+    </div>
+
+    <div style="margin-top: 26px; display: flex; flex-direction: column; gap: 16px;">
+      <div style="display: flex; flex-direction: column; gap: 7px;">
+        <label style="font-size: 13px; font-weight: 500;">Email</label>
+        <div style="height: 36px; border-radius: 10px; background: rgba(250,250,250,0.04); border: 1px solid rgba(250,250,250,0.12); display: flex; align-items: center; padding: 0 11px; font-size: 14px; color: #d4d4d4;">maurya@example.com</div>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 7px;">
+        <div style="display: flex; align-items: baseline; justify-content: space-between;">
+          <label style="font-size: 13px; font-weight: 500;">Password</label>
+          <span style="font-size: 12px; color: #6f6f6f;">Forgot?</span>
+        </div>
+        <div style="height: 36px; border-radius: 10px; background: rgba(250,250,250,0.04); border: 1px solid rgba(250,250,250,0.12); display: flex; align-items: center; padding: 0 11px; font-family: 'Geist Mono', monospace; font-size: 14px; color: #6f6f6f; letter-spacing: 0.15em;">••••••••••</div>
+      </div>
+
+      <div style="height: 36px; border-radius: 10px; background: #fafafa; color: #0a0a0a; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 500; margin-top: 2px;">Continue</div>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 12px; margin: 26px 0;">
+      <span style="height: 1px; flex-grow: 1; background: rgba(250,250,250,0.10);"></span>
+      <span style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.14em; color: #6f6f6f;">or</span>
+      <span style="height: 1px; flex-grow: 1; background: rgba(250,250,250,0.10);"></span>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 8px;">
+      <div style="height: 36px; border-radius: 10px; border: 1px solid rgba(250,250,250,0.12); background: rgba(250,250,250,0.03); display: flex; align-items: center; justify-content: center; gap: 9px; font-size: 14px; font-weight: 500;">
+        <svg viewBox="0 0 18 18" style="width: 15px; height: 15px;"><path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.92c1.7-1.57 2.68-3.88 2.68-6.62z"/><path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.8.54-1.84.86-3.04.86-2.34 0-4.32-1.58-5.03-3.7H.96v2.33A9 9 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.97 10.72a5.4 5.4 0 0 1 0-3.44V4.95H.96a9 9 0 0 0 0 8.1l3.01-2.33z"/><path fill="#EA4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58C13.46.9 11.43 0 9 0A9 9 0 0 0 .96 4.95l3.01 2.33C4.68 5.16 6.66 3.58 9 3.58z"/></svg>
+        <span>Continue with Google</span>
+      </div>
+      <div style="height: 36px; border-radius: 10px; border: 1px solid rgba(250,250,250,0.12); background: rgba(250,250,250,0.03); display: flex; align-items: center; justify-content: center; gap: 9px; font-size: 14px; font-weight: 500;">
+        <svg viewBox="0 0 18 18" style="width: 15px; height: 15px;"><path fill="#F25022" d="M0 0h8.5v8.5H0z"/><path fill="#7FBA00" d="M9.5 0H18v8.5H9.5z"/><path fill="#00A4EF" d="M0 9.5h8.5V18H0z"/><path fill="#FFB900" d="M9.5 9.5H18V18H9.5z"/></svg>
+        <span>Continue with Microsoft</span>
+      </div>
+      <div style="height: 36px; border-radius: 10px; border: 1px solid rgba(250,250,250,0.12); background: rgba(250,250,250,0.03); display: flex; align-items: center; justify-content: center; gap: 9px; font-size: 14px; font-weight: 500;">
+        <svg viewBox="0 0 16 16" fill="#fafafa" style="width: 15px; height: 15px;"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+        <span>Continue with GitHub</span>
+      </div>
+    </div>
+
+    <p style="margin: auto 0 0; font-size: 12px; line-height: 1.6; color: #6f6f6f;">No confirmation email &mdash; you are signed in the moment the account exists.</p>
+  </div>
+
+  <div style="flex-grow: 1; border-left: 1px solid rgba(250,250,250,0.10); background: #0d0d0d; padding: 48px 52px; display: flex; flex-direction: column; justify-content: center;">
+    <p style="margin: 0 0 30px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.16em; color: #6f6f6f;">How it works</p>
+
+    <div style="display: flex; flex-direction: column; gap: 26px;">
+      <div style="display: flex; gap: 16px;">
+        <span style="font-family: 'Geist Mono', monospace; font-size: 12px; color: #5a5a5a; padding-top: 2px; flex-shrink: 0;">01</span>
+        <div>
+          <div style="font-size: 14px; font-weight: 500;">Fetch</div>
+          <p style="margin: 5px 0 0; font-size: 13px; line-height: 1.65; color: #a1a1a1; max-width: 46ch;">Hacker News, Lobsters and a dozen engineering blogs. Duplicates collapse on canonical URL, so one story from two sources counts once.</p>
+        </div>
+      </div>
+      <div style="display: flex; gap: 16px;">
+        <span style="font-family: 'Geist Mono', monospace; font-size: 12px; color: #5a5a5a; padding-top: 2px; flex-shrink: 0;">02</span>
+        <div>
+          <div style="font-size: 14px; font-weight: 500;">Judge</div>
+          <p style="margin: 5px 0 0; font-size: 13px; line-height: 1.65; color: #a1a1a1; max-width: 46ch;">The sources are shared; the judgement is not. Every candidate is scored against your preferences &mdash; novelty, consequence, depth.</p>
+        </div>
+      </div>
+      <div style="display: flex; gap: 16px;">
+        <span style="font-family: 'Geist Mono', monospace; font-size: 12px; color: #5a5a5a; padding-top: 2px; flex-shrink: 0;">03</span>
+        <div>
+          <div style="font-size: 14px; font-weight: 500;">Cut</div>
+          <p style="margin: 5px 0 0; font-size: 13px; line-height: 1.65; color: #a1a1a1; max-width: 46ch;">Ranking happens in code, not in the prompt. A thin day ships a short digest rather than padding itself out to look busy.</p>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top: 44px; padding-top: 22px; border-top: 1px solid rgba(250,250,250,0.08); display: flex; gap: 26px;">
+      <div><div style="font-family: 'Geist Mono', monospace; font-size: 18px; font-weight: 500;">1</div><div style="font-size: 12px; color: #6f6f6f; margin-top: 3px;">call a day</div></div>
+      <div><div style="font-family: 'Geist Mono', monospace; font-size: 18px; font-weight: 500;">~40</div><div style="font-size: 12px; color: #6f6f6f; margin-top: 3px;">headlines read</div></div>
+      <div><div style="font-family: 'Geist Mono', monospace; font-size: 18px; font-weight: 500;">$0</div><div style="font-size: 12px; color: #6f6f6f; margin-top: 3px;">to run</div></div>
+    </div>
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

@@ -15,7 +15,7 @@ export default async function ResetPassword() {
         <p className="mb-3 text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
           Account
         </p>
-        <h1 className="text-3xl font-semibold tracking-tight">Set a new password</h1>
+        <h1 className="font-heading text-[34px] font-semibold leading-[1.08] tracking-[-0.03em]">Set a new password</h1>
       </div>
       <ResetForm />
     </div>
