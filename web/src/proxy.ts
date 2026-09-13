@@ -6,6 +6,9 @@ import { createServerClient } from "@supabase/ssr";
 const PUBLIC_PATHS = ["/login", "/auth"];
 
 function isPublic(pathname: string) {
+  // The root alone, not as a prefix — "/" as a prefix would make every path public.
+  // Signed out it is the landing page; signed in the same route is the digest.
+  if (pathname === "/") return true;
   return PUBLIC_PATHS.some(
     (p) => pathname === p || pathname.startsWith(`${p}/`),
   );

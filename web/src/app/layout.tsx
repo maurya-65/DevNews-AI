@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Bricolage_Grotesque, Instrument_Sans, JetBrains_Mono } from "next/font/google";
-import { Nav } from "@/components/nav";
+import { Shell } from "@/components/shell";
 import { currentUser } from "@/lib/auth";
 import { initialsFrom, nameFrom, type Identity } from "@/lib/identity";
 import { ThemeProvider } from "@/components/theme";
@@ -59,8 +59,9 @@ export default async function RootLayout({
       <body className="min-h-svh bg-background font-sans text-foreground antialiased">
         <ThemeProvider>
           <TooltipProvider delay={200}>
-            <Nav showDebug={SHOW_DEBUG} identity={identity} />
-            <main className="mx-auto max-w-3xl px-6 pb-28 pt-14">{children}</main>
+            <Shell showDebug={SHOW_DEBUG} identity={identity}>
+              {children}
+            </Shell>
           </TooltipProvider>
         </ThemeProvider>
       </body>

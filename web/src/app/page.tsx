@@ -1,7 +1,7 @@
-import { redirect } from "next/navigation";
 import { DailySeal } from "@/components/daily-seal";
 import { DigestList } from "@/components/digest-list";
 import { Empty } from "@/components/empty";
+import { Landing } from "@/components/landing/landing";
 import { PageHeader } from "@/components/page-header";
 import { currentUser } from "@/lib/auth";
 import { formatDay, formatRan } from "@/lib/options";
@@ -11,10 +11,10 @@ import { itemsForRun, latestRun, myProfile, scoredCount } from "@/lib/data";
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
-  // The digest is personal, so there is no signed-out version of this page to fall back
-  // to. proxy.ts already turns anonymous requests away; this is the second check, for
-  // the case where the cookie expires between the edge and here.
-  if (!(await currentUser())) redirect("/login");
+  // The digest is personal, so a signed-out visitor gets the landing page instead — it
+  // reads no data at all. This check, not proxy.ts, is what keeps the digest private:
+  // the proxy lets "/" through for exactly this reason.
+  if (!(await currentUser())) return <Landing />;
 
   return <Digest />;
 }
