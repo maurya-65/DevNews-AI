@@ -66,19 +66,24 @@ function Step({
   copy,
   index,
   progress,
+  staticLayout,
 }: {
   number: string;
   title: string;
   copy: string;
   index: number;
   progress: MotionValue<number>;
+  staticLayout: boolean;
 }) {
   const centers = [0.2, 0.5, 0.8];
   const center = centers[index] ?? 0.5;
   const opacity = useTransform(progress, [center - 0.18, center, center + 0.18], [0.35, 1, 0.35]);
   const y = useTransform(progress, [center - 0.18, center, center + 0.18], [12, 0, -12]);
   return (
-    <motion.article style={{ opacity, y }} className="will-change-transform">
+    <motion.article
+      style={{ opacity: staticLayout ? 1 : opacity, y: staticLayout ? 0 : y }}
+      className="will-change-transform"
+    >
       <span className="font-mono text-[0.65rem] text-muted-foreground">{number}</span>
       <h3 className="mt-8 font-heading text-4xl font-semibold">{title}</h3>
       <p className="mt-5 max-w-sm leading-relaxed text-muted-foreground">{copy}</p>
@@ -88,7 +93,11 @@ function Step({
 
 export function HowItWorks() {
   const ref = useRef<HTMLElement>(null);
-  const reduceMotion = useReducedMotion();
+  const touch = useTouchLayout();
+  const reduceMotion = Boolean(useReducedMotion());
+  // Unpinned on touch, the section scrolls past instead of holding still, so a scrubbed
+  // dim would leave all three steps at 35% for most of the time they are on screen.
+  const staticLayout = touch || reduceMotion;
   const { scrollYProgress } = useScroll({ target: ref, offset: ["start start", "end end"] });
   return (
     <section ref={ref} id="how-it-works" className="scroll-section border-b border-border md:h-[220vh]">
@@ -97,7 +106,7 @@ export function HowItWorks() {
           <div className="mb-14 h-px bg-border">
             <motion.div
               className="h-full origin-left bg-signal"
-              style={{ scaleX: reduceMotion ? 1 : scrollYProgress }}
+              style={{ scaleX: staticLayout ? 1 : scrollYProgress }}
             />
           </div>
           <p className="mb-14 font-mono text-[0.65rem] uppercase tracking-[0.22em] text-muted-foreground">
@@ -105,7 +114,15 @@ export function HowItWorks() {
           </p>
           <div className="grid gap-14 md:grid-cols-3 md:gap-8">
             {steps.map(([number, title, copy], index) => (
-              <Step key={number} number={number} title={title} copy={copy} index={index} progress={scrollYProgress} />
+              <Step
+                key={number}
+                number={number}
+                title={title}
+                copy={copy}
+                index={index}
+                progress={scrollYProgress}
+                staticLayout={staticLayout}
+              />
             ))}
           </div>
         </div>

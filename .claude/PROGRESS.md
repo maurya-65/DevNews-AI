@@ -60,6 +60,7 @@ Kya decide kiya aur **kyun** — taaki baad mein dobara na sochna pade.
 | 21 | Fetch shared, selection per user | Rule 1 ("ek LLM call per run") ab "ek call per user per run" hai. Fetching sabke liye ek jaisi hai toh ek baar; judgement personal hai toh share nahi ho sakti warna digest impersonal ho jaayega. Gemini free tier ~1500 req/day — dozens of users tak $0 |
 | 22 | `items` shared, scoring `verdicts` mein | Scores/summary/selection ab per-user hain, toh wo `items` se nikal ke `verdicts(user_id, item_id)` mein gaye. `items` sirf candidate pool hai |
 | 23 | OWNER_EMAIL allowlist hataya | Har user ka apna profile + verdicts hai aur RLS `auth.uid()` pe scope karta hai. Ek user doosre ka data chhoo hi nahi sakta, toh allowlist ke bachane ko kuch bacha hi nahi |
+| 24 | Signed-out `/` pe scroll-driven landing page, Lovable se draft karke haath se port kiya | Pehle anonymous visitor seedha login form pe girta tha. Ab page scroll ke saath product ki kahani dikhata hai (40 padhe → 8 rakhe → headline), aur upar scroll karne pe ulta chalta hai. Design Lovable mein bana (free tier, 2 prompts mein credits khatam); code per-file download karke port kiya kyunki GitHub sync ko saare repos ka access chahiye tha. Port mein Lovable ki galtiyan theek ki: hero ke layers ek doosre ke upar, phone pe sirf 57px ka scrub, Lenis ka alag rAF loop (jitter). CSS `.devnews` mein scoped taaki reader pe asar na pade; bina JS ke `<noscript>` settled page dikhata hai (page-header.tsx wala hi usool) |
 
 ---
 

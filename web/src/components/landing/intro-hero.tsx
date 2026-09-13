@@ -123,7 +123,7 @@ export function IntroHero() {
         </button>
 
         <div className="mx-auto flex w-full max-w-[1400px] flex-1 items-center justify-center">
-          <div aria-hidden="true" className="absolute inset-x-5 top-[18%] mx-auto max-w-6xl sm:inset-x-8">
+          <div aria-hidden="true" className="hero-layer absolute inset-x-5 top-[18%] mx-auto max-w-6xl sm:inset-x-8">
             <motion.div
               className="grid grid-cols-2 gap-px overflow-hidden border border-border bg-border will-change-transform sm:grid-cols-4 lg:grid-cols-8"
               style={{ opacity: reduceMotion ? 0 : gridOpacity, y: gridY, x: velocityDrift }}
@@ -148,7 +148,7 @@ export function IntroHero() {
               same kept items. */}
           <motion.ol
             aria-label="Eight headlines kept today"
-            className="absolute inset-x-5 top-[18%] mx-auto max-w-3xl divide-y divide-border border-y border-border will-change-transform sm:inset-x-8"
+            className="hero-layer absolute inset-x-5 top-[18%] mx-auto max-w-3xl divide-y divide-border border-y border-border will-change-transform sm:inset-x-8"
             style={{ opacity: reduceMotion ? 0 : rankOpacity, y: reduceMotion ? 0 : rankY }}
           >
             {kept.map(([title, score], index) => (

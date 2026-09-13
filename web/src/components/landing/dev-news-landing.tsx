@@ -18,16 +18,32 @@ export function DevNewsLanding() {
   );
 }
 
+/** The page without JavaScript. Every animated element is server-rendered in its
+ *  pre-animation state — Motion writes those values as inline styles — so with no JS
+ *  to scrub them the headline would sit at opacity 0 and the page would read as blank.
+ *  The same trap page-header.tsx avoids. This shows the settled page instead: text in,
+ *  the decorative hero layers out, nothing pinned over empty scroll. !important
+ *  because the values it overrides are inline. */
+const NO_JS_CSS = `
+.devnews [style] { opacity: 1 !important; transform: none !important; }
+.devnews .scroll-progress, .devnews .hero-layer { display: none !important; }
+.devnews .hero-track, .devnews .scroll-section, .devnews .digest-track { height: auto !important; }
+.devnews .hero-sticky, .devnews .section-sticky, .devnews .digest-sticky { position: relative !important; min-height: auto !important; }
+.devnews .hero-sticky { min-height: 100svh !important; }
+.devnews .digest-row { flex-direction: column; width: 100% !important; }
+`;
+
 function LandingContent() {
   const reduceMotion = useReducedMotion();
   const { scrollYProgress } = useScroll();
 
   return (
     <div className="devnews min-h-screen bg-background text-foreground">
+      <noscript dangerouslySetInnerHTML={{ __html: `<style>${NO_JS_CSS}</style>` }} />
       {!reduceMotion && (
         <motion.div
           aria-hidden="true"
-          className="fixed inset-x-0 top-0 z-[70] h-px origin-left bg-signal"
+          className="scroll-progress fixed inset-x-0 top-0 z-[70] h-px origin-left bg-signal"
           style={{ scaleX: scrollYProgress }}
         />
       )}
