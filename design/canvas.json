@@ -1,0 +1,73 @@
+{
+  "pages": [
+    { "id": "page-2", "name": "Bolder" },
+    { "id": "page-1", "name": "Screens" }
+  ],
+  "artboards": [
+    { "file": "BoldToday.dc.html", "x": 0, "y": 0, "w": 1080, "h": 1240, "title": "Today — bolder", "page": "page-2" },
+    { "file": "Main.dc.html", "x": 0, "y": 0, "w": 960, "h": 900, "title": "Today", "page": "page-1" },
+    { "file": "Archive.dc.html", "x": 1040, "y": 0, "w": 960, "h": 900, "title": "Archive", "page": "page-1" },
+    { "file": "Preferences.dc.html", "x": 2080, "y": 0, "w": 960, "h": 900, "title": "Preferences", "page": "page-1" },
+    { "file": "Login.dc.html", "x": 0, "y": 1020, "w": 960, "h": 820, "title": "Sign in", "page": "page-1" },
+    { "file": "QuietDay.dc.html", "x": 1040, "y": 1020, "w": 960, "h": 640, "title": "Quiet day", "page": "page-1" }
+  ],
+  "annotations": [
+    {
+      "id": "bold-brief",
+      "x": 1180,
+      "y": 0,
+      "w": 480,
+      "page": "page-2",
+      "text": "TODAY — BOLDER\n\nSame content, a point of view. Four changes, all borrowed as principles rather than pixels:\n\n1. The sidebar is gone. It made a reading app look like a dashboard and took a fifth of the screen away from the writing.\n\n2. Headlines go 16px → 30px and the date goes to 68px. A digest of five things can afford to be set like a publication instead of a table.\n\n3. One rule generates the type: big is Geist, small is Geist Mono, nothing in between. Every piece of metadata is mono; every piece of content is sans.\n\n4. Utilities become underlined text in the corners, and the only component on screen is the floating pill. One saturated colour (#ff4d1c) appears in exactly two places — the live status dot and the rank of item 01."
+    },
+    {
+      "id": "bold-open",
+      "x": 1180,
+      "y": 560,
+      "w": 480,
+      "page": "page-2",
+      "text": "STILL OPEN\n\n· The accent is a placeholder — it should probably be yours, not a colour I picked.\n· \"Switch to compact?\" implies a second density mode. Worth building, or cut it?\n· This costs vertical space: five stories no longer fit above the fold. For a once-a-day read I think that is the right trade, but it is a trade."
+    },
+    {
+      "id": "brief",
+      "x": 0,
+      "y": -230,
+      "w": 620,
+      "page": "page-1",
+      "text": "DevNews — five screens, direction C refined.\n\nHierarchy comes from type scale, weight and one hairline — not from boxes. Palette is strictly your existing zero-chroma tokens; the only saturated colour is the three OAuth brand marks.\n\nGeometry is lifted from the shadcn primitives already installed: badge h-20px / rounded-4xl / 12px, button h-32px / rounded-10px, card ring-1 at foreground/10. Sample headlines and scores are invented."
+    },
+    {
+      "id": "note-today",
+      "x": 0,
+      "y": 940,
+      "w": 420,
+      "page": "page-1",
+      "text": "TODAY\nRank, title and score share one baseline; source metadata drops below the summary so the writing leads. Rows are hairline-divided rather than carded."
+    },
+    {
+      "id": "note-prefs",
+      "x": 2080,
+      "y": 940,
+      "w": 420,
+      "page": "page-1",
+      "text": "PREFERENCES\nSelected topics invert to solid white rather than tinting. Sliders are 3px rails — the same treatment as the source-mix bars, so one idea is reused instead of two being invented."
+    },
+    {
+      "id": "note-login",
+      "x": 0,
+      "y": 1880,
+      "w": 420,
+      "page": "page-1",
+      "text": "SIGN IN\nSplit layout: form left, the three-step explanation right on a slightly lifted ground (#0d0d0d). This is where the old Hero copy went now that / is gated."
+    },
+    {
+      "id": "note-quiet",
+      "x": 1040,
+      "y": 1700,
+      "w": 420,
+      "page": "page-1",
+      "text": "QUIET DAY\nA real answer, not a broken page. The date header stays so the day is still legible as a day; the escape hatch to the rejects sits under it."
+    }
+  ],
+  "launch": { "view": "canvas", "page": "page-2" }
+}

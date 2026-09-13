@@ -160,6 +160,10 @@ export function AuthForm({
 
         {mode === "signup" && (
           <form action={signUpAction} className="space-y-4">
+            <p className="text-xs text-muted-foreground">
+              Already have an account? Entering it here signs you in — no confirmation
+              email either way.
+            </p>
             <Field id="email" label="Email" type="email" autoComplete="email" />
             <Field
               id="password"

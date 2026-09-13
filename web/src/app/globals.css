@@ -8,8 +8,9 @@
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-sans);
-  --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-sans);
+  --font-mono: var(--font-mono-face);
+  --font-heading: var(--font-display-face);
+  --color-signal: var(--signal);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -73,6 +74,9 @@
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
   --radius: 0.625rem;
+  /* One saturated colour in the whole system. Warm, so it reads as editorial ink
+     rather than as a status colour competing with destructive. */
+  --signal: oklch(0.58 0.19 42);
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
   --sidebar-primary: oklch(0.205 0 0);
@@ -85,6 +89,7 @@
 
 .dark {
   --background: oklch(0.145 0 0);
+  --signal: oklch(0.76 0.16 55);
   --foreground: oklch(0.985 0 0);
   --card: oklch(0.205 0 0);
   --card-foreground: oklch(0.985 0 0);
@@ -127,4 +132,116 @@
   html {
     @apply font-sans;
   }
+}
+/* ------------------------------------------------------------------------------------
+ * Landing page (components/landing), ported from the Lovable draft's styles.css.
+ *
+ * Unlayered on purpose, as it was in the draft: `.hero-sticky` has to beat the
+ * `relative` utility sitting on the same element, and Tailwind's utilities live in a
+ * layer, so an unlayered rule wins without reaching for !important. Everything is
+ * scoped under `.devnews`, so none of it reaches the reader — the draft's
+ * reduced-motion reset in particular was global and would have flattened the reader's
+ * own motion.
+ *
+ * The landing is dark-first. Its accent is the app's --signal rather than a second
+ * orange, so the front page and the reader share one ink.
+ * ---------------------------------------------------------------------------------- */
+
+.devnews {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --muted: oklch(0.22 0 0);
+  --muted-foreground: oklch(0.68 0 0);
+  --border: oklch(1 0 0 / 10%);
+  font-family: var(--font-sans);
+}
+
+.light .devnews {
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.18 0 0);
+  --muted: oklch(0.96 0 0);
+  --muted-foreground: oklch(0.45 0 0);
+  --border: oklch(0.18 0 0 / 12%);
+}
+
+.devnews .hero-sticky,
+.devnews .section-sticky,
+.devnews .digest-sticky {
+  position: sticky;
+  top: 0;
+  min-height: 100vh;
+}
+
+.devnews .digest-sticky {
+  display: flex;
+  align-items: center;
+}
+
+.devnews .will-change-transform {
+  will-change: transform, opacity;
+}
+
+.devnews .accent-underline {
+  text-decoration-line: underline;
+  text-decoration-color: var(--signal);
+  text-decoration-thickness: 0.08em;
+  text-underline-offset: 0.12em;
+}
+
+.devnews .focus-ring:focus-visible {
+  outline: 2px solid var(--signal);
+  outline-offset: 4px;
+}
+
+.devnews .seal-range {
+  accent-color: var(--signal);
+}
+
+.devnews .live-dot {
+  animation: devnews-live-pulse 3s ease-in-out infinite;
+}
+
+@keyframes devnews-live-pulse {
+  0%, 100% { opacity: 0.45; }
+  50% { opacity: 1; }
+}
+
+/* Phones show sixteen headlines, not forty. */
+@media (max-width: 639px) {
+  .devnews .headline-chip:nth-child(n + 17) { display: none; }
+}
+
+/* Touch and narrow screens: How it works and the digest unpin, and the digest stacks
+   vertically instead of sliding sideways, since a sideways track fights a thumb.
+   The hero stays pinned. Unpinned, its scroll range was its own height minus the
+   screen's, under 60px on a phone, so the whole story played out in one flick.
+   Sticky still rides native touch scrolling; svh rather than vh so the mobile
+   address bar showing and hiding cannot resize the track mid-scroll. */
+@media (max-width: 767px), (pointer: coarse) {
+  .devnews .hero-track { height: 220svh; }
+  .devnews .hero-sticky { min-height: 100svh; }
+  .devnews .scroll-section,
+  .devnews .digest-track { height: auto; }
+  .devnews .section-sticky,
+  .devnews .digest-sticky { position: relative; min-height: auto; }
+  .devnews .digest-row { flex-direction: column; width: 100%; transform: none !important; }
+}
+
+/* Reduced motion: every section renders settled, nothing is pinned or scrubbed. */
+@media (prefers-reduced-motion: reduce) {
+  .devnews *,
+  .devnews *::before,
+  .devnews *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .devnews .hero-track,
+  .devnews .scroll-section,
+  .devnews .digest-track { height: auto !important; }
+  .devnews .hero-sticky,
+  .devnews .section-sticky,
+  .devnews .digest-sticky { position: relative; min-height: auto; }
+  .devnews .hero-sticky { min-height: 900px; }
+  .devnews .digest-row { flex-direction: column; width: 100%; transform: none !important; }
 }
