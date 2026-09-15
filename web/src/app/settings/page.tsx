@@ -1,34 +1,19 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { PageHeader } from "@/components/page-header";
-import { myProfile } from "@/lib/data";
+import { siteOrigin } from "@/lib/site";
+import { store } from "@/lib/store";
+import { getViewer } from "@/lib/viewer";
 import { SettingsForm } from "./settings-form";
 
 export const dynamic = "force-dynamic";
+export const metadata: Metadata = { title: "Preferences" };
 
 export default async function Settings() {
-  const prefs = await myProfile();
-  if (!prefs) redirect("/login");
+  const viewer = await getViewer();
+  if (!viewer) redirect("/login");
 
-  const updated = prefs.updated_at
-    ? new Date(prefs.updated_at).toLocaleDateString("en-IN", {
-        day: "numeric",
-        month: "short",
-        timeZone: "Asia/Kolkata",
-      })
-    : null;
+  const profile = await store().getProfile(viewer.user.id);
+  if (!profile) redirect("/login");
 
-  return (
-    <>
-      <PageHeader
-        eyebrow="Preferences"
-        title="What you want to read"
-        meta={
-          updated
-            ? `Last changed ${updated} · applies to your next digest, not past ones`
-            : "Applies to your next digest, not past ones"
-        }
-      />
-      <SettingsForm prefs={prefs} />
-    </>
-  );
+  return <SettingsForm profile={profile} feedBase={`${await siteOrigin()}/feed/`} />;
 }

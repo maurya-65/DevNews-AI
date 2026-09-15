@@ -60,6 +60,10 @@ Kya decide kiya aur **kyun** — taaki baad mein dobara na sochna pade.
 | 21 | Fetch shared, selection per user | Rule 1 ("ek LLM call per run") ab "ek call per user per run" hai. Fetching sabke liye ek jaisi hai toh ek baar; judgement personal hai toh share nahi ho sakti warna digest impersonal ho jaayega. Gemini free tier ~1500 req/day — dozens of users tak $0 |
 | 22 | `items` shared, scoring `verdicts` mein | Scores/summary/selection ab per-user hain, toh wo `items` se nikal ke `verdicts(user_id, item_id)` mein gaye. `items` sirf candidate pool hai |
 | 23 | OWNER_EMAIL allowlist hataya | Har user ka apna profile + verdicts hai aur RLS `auth.uid()` pe scope karta hai. Ek user doosre ka data chhoo hi nahi sakta, toh allowlist ke bachane ko kuch bacha hi nahi |
+| 24 | Signed-out `/` pe scroll-driven landing page, Lovable se draft karke haath se port kiya | Pehle anonymous visitor seedha login form pe girta tha. Ab page scroll ke saath product ki kahani dikhata hai (40 padhe → 8 rakhe → headline), aur upar scroll karne pe ulta chalta hai. Design Lovable mein bana (free tier, 2 prompts mein credits khatam); code per-file download karke port kiya kyunki GitHub sync ko saare repos ka access chahiye tha. Port mein Lovable ki galtiyan theek ki: hero ke layers ek doosre ke upar, phone pe sirf 57px ka scrub, Lenis ka alag rAF loop (jitter). CSS `.devnews` mein scoped taaki reader pe asar na pade; bina JS ke `<noscript>` settled page dikhata hai (page-header.tsx wala hi usool) |
+| 25 | v2 rebuild: article ek baar samjho, ranking har reader ke liye code mein (decisions 1, 21, 22 **superseded**) | v1 ka pipeline toota hua tha (0 verdicts kabhi likhe gaye) aur per-user LLM call free tier pe scale nahi karta. Ab: 5 sources (arXiv + GitHub add), article ka text fetch (42/48 ko title se zyada milta hai, v1 mein 5/20), ~4 batched model calls per run chahe kitne bhi readers hon, per-reader ranking `rank.py` mein, saves/votes/hides se taste seekhna, threads, search, lab page, status page, RSS, optional email. Schema additive migration hai — v1 tables chhue nahi. Poori detail `docs/ARCHITECTURE.md` mein |
+| 26 | Continuity code mein: reader ne jo story pehle save/like/padhi, uska naya article upar aata hai aur batata hai kiska follow-up hai | PRODUCT_VISION ka core bet "story thread over time" hai, par v2 mein thread sirf ek public page tha — reader ki apni history se koi jod nahi. Ab `rank.follow_ups` har thread ke liye sabse strong engagement chunta hai (save > like > open > shown); candidate ko +0.5 interest (`FOLLOW_UP_INTEREST`) aur `why` mein "Follows “X”, which you saved". Koi model call nahi, koi migration nahi — `components.follows` jsonb mein jaata hai, isliye email aur RSS ko bhi muft milta hai. Jis thread mein reader ne kuch down-vote ya hide kiya, usmein wapas nahi kheenchte |
+| 27 | Lab pe 30 din ka "liked or saved" % | Vision ka precision@k metric kahin dikhta hi nahi tha. Ab rakhe gaye articles mein se kitne khole, pasand/save kiye, ya hataye — reader ke apne rows se, RLS ke through. Target > 60% |
 
 ---
 
@@ -77,6 +81,34 @@ _koi nahi_
 ---
 
 ## Session log
+
+### 2026-09-15 — cron theek, v2 main pe
+Hafte bhar ke failed crons ki asli wajah mili: chaaron GitHub secrets ke shuru mein UTF-8
+BOM (`﻿`) tha — PowerShell 5.1 mein `gh secret set` ko pipe karne se aata hai, aur
+Python ka `strip()` use nahi hataata. `agent/env.py` start-up pe har value saaf karta hai,
+`agent check` sirf key ka naam batata hai, value kabhi nahi. Production jaisa BOM laga ke
+local `agent check` pass kiya, phir GitHub pe run 35016936420 green: 44 articles, 4 calls
+(Gemini chaaron baar 503, Groq ne sambhala), 1 edition. SETUP.txt v0 ka tha — poora
+naya likha, Vercel deploy ke saath. `rebuild/v2` → `main` merge.
+
+### 2026-09-15 — continuity aur precision (decisions 26-27)
+v2 ko PRODUCT_VISION ke saamne rakh ke dekha: sab chal raha tha, par core bet (story over time,
+*reader ke liye*) aur precision@k dono gayab the. Dono code mein add kiye, zero model calls,
+zero migration. 69 tests (3 naye: follow-up rank, strongest engagement, pipeline end to end).
+Continuity fixture pe offline `agent editions` chalaya: saved RubyGems story ke thread ka naya
+article "Follows “…”, which you saved" ke saath edition mein aaya.
+
+### 2026-09-15 — v2 rebuild
+Poora codebase dobara likha (decision 25). Migration `20260915000000_v2.sql` production mein
+chala, pehla asli run ok: 67 candidates → 48 analyzed (4 calls, Gemini 503 pe Groq ne
+sambhala) → 8-item edition. 66 Python tests, `tsc`/`eslint`/`next build` clean. Har page
+fixture mode mein Chrome se dekha, desktop aur 400px dono.
+
+**Verification mein mile aur theek kiye:**
+- `DailySeal` ke SVG coordinates server aur browser pe aakhri float digit alag print karte
+  the → hydration mismatch. Ab 2 decimal pe round.
+- arXiv titles mein raw TeX (`$\pi$-calculus`). `sources/arxiv.py` ab inline maths ko
+  padhne layak text banata hai; `$5 and $10` jaisi keemtein nahi chhedta.
 
 ### 2026-09-08 — Phase 4 + 5
 `web/` Next.js 16 app — `/` digest aur `/debug` (sab 20, scores + reason + cut line).

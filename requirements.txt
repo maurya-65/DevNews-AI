@@ -1,10 +1,15 @@
-# DevNews-AI — agent runtime (Python 3.12)
+# DevNews v2 — pipeline runtime (Python 3.12). Everything here is free to run.
 
-# LLM providers — both free tier. Picked at runtime by LLM_PROVIDER in .env.
+# LLM providers, both on their free tier. LLM_PROVIDER picks the primary; the other is
+# the fallback when the primary is overloaded.
 google-genai==2.22.0
 groq==1.7.0
 
 supabase==2.31.0
 httpx==0.28.1
 feedparser==6.0.14
+trafilatura==2.2.0
 python-dotenv==1.2.3
+
+# Tests only. CI installs these too; the daily run does not need them.
+pytest==9.1.1

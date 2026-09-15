@@ -1,132 +1,55 @@
 # Handoff
 
-**Last updated:** 2026-09-08
-**State:** Phase 0 chal raha hai — toolchain + Supabase ready, LLM keys baaki. Zero code.
-**Next action:** Phase 1 (`fetch.py`) — isko kisi key ki zaroorat nahi, abhi shuru ho sakta hai
+**Last updated:** 2026-09-15
+**Branch:** `rebuild/v2` — PR #2 into `main` is open, checks green, waiting for review.
+**State:** v2 has run green on GitHub Actions against production Supabase (dispatched from
+the branch). Until PR #2 merges, the 06:30 UTC cron on `main` still runs v1 and still fails.
+The site is built and checked but not yet deployed — that needs a Vercel login (SETUP.txt §4).
 
 ---
 
-## Where things stand
+## What v2 is
 
-Poori design ho chuki hai aur `.claude/` + `docs/` mein likhi hui hai. Toolchain aur
-dependencies install ho chuke hain, Supabase project bhi bana hai — par **pipeline ka
-abhi tak ek line code nahi likha gaya.**
+The model reads each article **once**, for everyone (summary, takeaway, kind, topics,
+novelty/depth/impact, confidence, story link). Ranking happens in code, **per reader**, and
+learns from what they save, vote on, open and hide. A new development in a story the reader
+already saved, liked or read is lifted and says which earlier piece it follows. No model
+call is made per user. See `README.md` and `docs/ARCHITECTURE.md`; decisions 25–27 in
+`PROGRESS.md` record why.
 
-Kaafi design iterations ke baad scope jaan-boojhkar chhota rakha gaya hai. Pehle bade
-versions soche gaye the (embeddings, story threads, email feedback loop, article fetching,
-two-model pipeline) — sab v1 mein daal diye. **v0 ka ek hi kaam hai: loop end-to-end chala ke
-dikhana.**
+## Verified
 
----
+- `python -m pytest` — 81 passing.
+- **GitHub Actions, run 35016936420** (dispatched from `rebuild/v2`, 2026-09-15 20:00 UTC):
+  `agent check` ok, 68 candidates → 44 new articles → 44 analyzed in 4 model calls
+  (Gemini 503 on all four, Groq fallback answered each), 20.9K in / 7.2K out tokens,
+  1 edition from 92 candidates, 8 story hints waiting to become threads. Status page shows it.
+- The week of failed crons (2026-09-09 → 15) was a UTF-8 byte-order mark at the start of
+  **all four** secrets, from piping into `gh secret set` in PowerShell. `agent/env.py` now
+  strips it at start-up and `agent check` names each corrected key.
+- Continuity and the lab's 30-day liked-or-saved rate: checked in Chrome on a fixture with a
+  saved story and its follow-up, desktop and 400px.
+- Public pages (landing, status, search) against production in Chrome, no console errors.
+- `web`: `tsc`, `eslint` and `next build` clean; all 18 routes build. `ci.yml` green.
 
-## v0 — exactly this, nothing more
+## Not yet verified
 
-```
-3 sources → 20 headlines → ONE LLM call → 7-8 selected → web page
-```
+- Signed-in pages against real Supabase (editions, saved, lab, settings, save/vote/hide
+  writing through RLS). Needs a real account; fixture mode covers the rendering.
+- The deployed site: there is no deployment yet.
+- Follow-ups in production: they need threads, and threads need a second article on a story
+  (8 hints are waiting).
+- Email: needs `RESEND_API_KEY` + `EMAIL_FROM`.
 
-Provider free tier pe hai aur swappable: `LLM_PROVIDER=gemini|groq`. Default
-`gemini-3.8-flash`. Poori reasoning PROGRESS decisions 17-19 mein.
+## Next
 
-Nahi hai v0 mein: email, embeddings, threads, article fetching, click tracking,
-profile learning, do-model pipeline.
-
-**Done ka matlab:** roz subah bina kuch chhue ek public URL pe 7-8 CS headlines dikhein,
-score + reason + summary ke saath. Cost $0 — sab free tier pe.
-
----
-
-## Next session mein kya karna hai
-
-**1. Phase 0** — ✅ files aur toolchain ho gaye. Baaki: user ko `docs/schema-v0.sql`
-Supabase SQL editor mein paste karna hai, aur Gemini/Groq keys `.env` mein daalni hain.
-
-**2. Phase 1** — `fetch.py` + teen source modules. Koi LLM nahi, koi DB nahi.
-Exit: `python -m agent.fetch` 20 asli items print kare.
-
-Phase 1 ke baad **rukna aur output dekhna** — sources ki quality wahin dikhegi, aur uspe
-baaki sab depend karta hai.
-
-Poora detail `BUILDFLOW.md` mein hai. Reasoning `PROGRESS.md` ke decisions log mein.
-
----
-
-## Mujhe user se ye chahiye (blocking)
-
-| # | Kya | Status |
-|---|---|---|
-| 1 | **Interest profile** | ⏸️ **defer kiya (2026-09-08).** User ne kaha baad mein dekhenge. Placeholder `prompts/select.md` mein chal raha hai aur kaam kar raha hai. Isse abstract sawaal poochne se kuch nahi nikla — **asli digest dikha ke poochna**: "ye item kyun aaya / ye kyun nahi aaya". Wahan se profile likhna aasan hoga |
-| 2 | Supabase project | ✅ ho gaya, keys `.env` mein, connection verified |
-| 3 | LLM API key | ⬜ Gemini + Groq, dono free. Anthropic drop ho gaya |
-| 4 | Schema paste (`docs/schema-v0.sql`) | ⬜ Supabase SQL editor mein, ek baar |
-| 5 | Cron time | ✅ 06:30 UTC = 12:00 IST |
-| 6 | Site public ya private | ✅ public — anon RLS policies waise hi rahengi |
-
-**Keys chat mein kabhi paste mat karna.** Woh `.env` (local) aur GitHub repo secrets mein
-jaati hain. Mujhe sirf ye batana ki bana li hain.
-
-### Decided — blog feeds (default list)
-
-`blogs.py` mein ye jaayengi:
-
-```python
-FEEDS = [
-    "https://blog.cloudflare.com/rss/",
-    "https://netflixtechblog.com/feed",
-    "https://stripe.com/blog/feed.rss",
-    "https://www.uber.com/blog/engineering/rss/",
-    "https://research.google/blog/rss/",
-    "https://fly.io/blog/feed.xml",
-    "https://jvns.ca/atom.xml",
-    "https://danluu.com/atom.xml",
-]
-```
-
-Do baatein Phase 1 mein dekhni hain:
-- **URLs verify karo.** Feed URLs badalte rehte hain — jo 404 de, use nikaal do ya theek karo.
-  Ek chhota script sab feeds hit karke status print kar de, yehi Phase 1 ka pehla check hai.
-- **jvns aur danluu low-volume hain** — hafton mein ek post. Diversity ke liye ache hain, par
-  blogs ka 5-item quota zyadatar Cloudflare/Netflix/Fly jaise regular publishers se bharega.
-
----
-
-## Kya na karna (already decided)
-
-Ye sab discuss ho chuka hai aur reject hua hai. Dobara propose karne se pehle
-`PROGRESS.md` ka decisions log padhna.
-
-- **Chhota model add karke do-step banana** — 20 items pe compression ka volume nahi, aur
-  selection se pehle compress karna bade model se information cheen leta hai
-- **Do LLM calls** — v0 mein articles fetch nahi ho rahe, doosre turn ko naya kuch milega hi nahi
-- **Model se "top 8 chuno" bolna** — uska cut-off har din drift karega; ranking code ka kaam hai
-- **Ek provider pe settle karna** — dono free hain, abstraction likha ja chuka hai
-- **v0 mein embeddings/threads** — 20 items pe URL dedupe kaafi hai
-- **Reader UI pehle banana** — debug page (rejects ke saath) zyada zaroori hai
-- **Model ko `points`/`comments` dikhana** — pehle dekhna hai bina uske kaisa select karta hai
-
----
-
-## Phase 1 ka result — measured 2026-09-08
-
-**Blurb missing: 15/20.** HANDOFF ne ~10/20 predict kiya tha; asliyat usse kharab hai.
-
-| Source | Items | Blurb hai |
-|---|---|---|
-| hn | 10 | 0 — Algolia `story_text` sirf Ask/Show HN pe aata hai |
-| lobsters | 5 | 0 — `description_plain` in stories pe khaali tha |
-| blog | 5 | 5 |
-
-Matlab **15 items sirf title pe judge honge.** Ye v0 ka sabse bada known risk hai.
-Blog blurbs bhi hamesha kaam ke nahi — Google research feed "General Science" bhejta hai,
-jo category hai, summary nahi.
-
-**Abhi fix mat karna.** Pehle Phase 3 chala ke dekho selection kaisi aati hai. Agar kharab
-lage to options: meta description scrape, ya HN quota ghatao, ya Lobsters `description`
-(HTML wala) use karo `description_plain` ki jagah.
-
-### Feed list badla
-Uber engineering feed **mar chuka hai** (404 browser UA pe, 406 bot UA pe). Meta
-(`engineering.fb.com/feed/`) se replace kiya. Baaki 7 feeds zinda, verified 2026-09-08.
-
-Cloudflare ne 5 blog slots mein se 2 le liye — `PER_FEED=3` cap laga hai, par merge
-recency pe hota hai toh high-volume feeds aage rehte hain. v0 ke liye acceptable.
+1. Re-save the four secrets with `gh secret set NAME --body "…"` (SETUP.txt §3). Runs work
+   without it, but `agent check` will keep printing notes until then.
+2. Deploy `web/` on Vercel (SETUP.txt §4), set Supabase's Site URL and redirect URL, then
+   `gh variable set SITE_URL`.
+3. Sign in, save / vote / hide a few stories, run `python -m agent editions`, and confirm
+   the lab shows learned taste and the liked-or-saved rate.
+4. After a week of editions, run the "Retiring v1" statements at the bottom of the migration.
+5. Gemini 3.8 Flash returned 503 on 7 of 8 calls across both production runs. Making Groq
+   primary would skip the failed attempt, but Groq's free tier is 6K tokens/minute and a
+   batch is ~7K — try one local run with `--provider groq` before flipping `daily.yml`.
