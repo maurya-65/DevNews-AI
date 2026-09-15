@@ -53,6 +53,17 @@ ranking and keeps articles that clear the reader's quality bar, with at most thr
 primary topic and one per site, up to the edition size. Every item stores `components`
 and a `why` sentence.
 
+### Continuity
+
+A thread is only worth something to a reader if it connects to what *they* already know.
+Before ranking, `store.thread_engagement` collects what the reader did with earlier articles
+in the threads today's candidates belong to, and `rank.follow_ups` keeps the strongest per
+thread (saved, then liked, then opened, then merely shown). A candidate in such a thread
+gets `FOLLOW_UP_INTEREST` added to its interest, `components.follows` naming the earlier
+article, and a `why` that starts "Follows “…”, which you saved". A thread the reader voted
+down or hid anything in is never pulled back. No model call, no extra column: it rides in
+`components`, so email and RSS carry it for free.
+
 ### Taste
 
 Events: up +1.0, save +0.8, open +0.25, unsave −0.3, hide −0.7, down −1.0. Each nudges the
@@ -83,7 +94,7 @@ Next.js 16, App Router, server components reading through the visitor's Supabase
 | `/article/[id]` | public | Everything known about one article |
 | `/search` | public | Full-text search (`search_articles` RPC) |
 | `/saved` | reader | Reading list |
-| `/lab` | reader | Score breakdown and learned taste |
+| `/lab` | reader | Score breakdown, learned taste, and 30-day liked-or-saved rate |
 | `/status` | public | Runs, stages, source health |
 | `/settings`, `/settings/account` | reader | Preferences and account |
 | `/r/[id]` | public | Records an open for readers, redirects to the stored URL only |

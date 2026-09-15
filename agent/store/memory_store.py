@@ -14,7 +14,8 @@ from pathlib import Path
 from agent import config
 from agent.models import Analysis, Card, Draft, Ranked, Reader
 from agent.store.common import (analysis_from_row, analysis_row, card_from_rows, context_entries,
-                                edition_item_rows, iso, mention_from_row, reader_from_row, utcnow)
+                                edition_item_rows, engagement_rows, iso, mention_from_row,
+                                reader_from_row, utcnow)
 from agent.threads import ThreadPlan, slugify
 
 TABLES = ("pipeline_runs", "run_stages", "llm_calls", "sources", "articles", "mentions",
@@ -265,6 +266,22 @@ class MemoryStore:
                    if e["user_id"] == user_id and e["edition_date"] < edition_date}
         return {i["article_id"] for i in self.t["edition_items"]
                 if i["edition_id"] in earlier and i["selected"]}
+
+    def thread_engagement(self, user_id: str, thread_ids: set[int]) -> list[dict]:
+        members = {a["article_id"]: a["thread_id"] for a in self.t["analyses"]
+                   if a.get("thread_id") in thread_ids}
+        titles = {a["id"]: a["title"] for a in self.t["articles"] if a["id"] in members}
+
+        def mine(table: str) -> list[dict]:
+            return [r for r in self.t[table] if r["user_id"] == user_id]
+
+        actions = [(r["article_id"], "saved", r.get("created_at")) for r in mine("saves")]
+        actions += [(r["article_id"], "upvoted" if r["value"] == 1 else "down", r.get("created_at"))
+                    for r in mine("votes")]
+        actions += [(r["article_id"], "opened" if r["kind"] == "open" else "hid", r.get("created_at"))
+                    for r in mine("events") if r["kind"] in ("open", "hide")]
+        actions += [(r["article_id"], "shown", None) for r in mine("edition_items") if r["selected"]]
+        return engagement_rows(members, titles, actions)
 
     def save_edition(self, user_id: str, run_id: int | None, edition_date: str,
                      ranked: list[Ranked], candidate_count: int) -> int:

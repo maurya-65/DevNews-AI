@@ -113,6 +113,10 @@ EDITION_WINDOW_HOURS = 36   # articles first seen this recently are edition cand
 MAX_PER_PRIMARY_TOPIC = 3   # diversity: no edition is all one subject
 MAX_PER_DOMAIN = 1          # or all one publisher
 EDITION_STORE_TOP = 40      # candidates stored per edition, for the lab page
+# Continuity: a new article in a story the reader already saved, liked or read is lifted
+# by this much interest, and says which earlier piece it follows.
+FOLLOW_UP_INTEREST = 0.5
+FOLLOW_UP_TITLE_CHARS = 70
 
 DEFAULT_EDITION_SIZE = 8
 DEFAULT_QUALITY_BAR = 5.0

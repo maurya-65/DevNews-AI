@@ -85,6 +85,24 @@ def test_reader_events_become_taste(offline):
     assert store.t["profiles"][0]["taste_updated_at"] is not None
 
 
+def test_a_story_the_reader_saved_makes_its_follow_up_say_so(offline):
+    store = MemoryStore()
+    pipeline.run(store, router=FakeRouter(), now=NOW, send_email=False)
+    reader_id = store.t["profiles"][0]["id"]
+    (thread,) = store.t["threads"]
+    members = sorted(a["article_id"] for a in store.t["analyses"] if a["thread_id"] == thread["id"])
+    saved, follow_up = members
+    store.t["saves"].append({"user_id": reader_id, "article_id": saved,
+                             "created_at": "2026-09-15T07:10:00+00:00"})
+
+    stats = editions.build_all(store, None, NOW)
+    items = {i["article_id"]: i for i in store.t["edition_items"]}
+    assert items[follow_up]["components"]["follows"]["article_id"] == saved
+    assert items[follow_up]["components"]["follows"]["how"] == "saved"
+    assert "follows" not in items[saved]["components"]
+    assert stats["follow_ups"] == (1 if items[follow_up]["selected"] else 0)
+
+
 def test_a_model_outage_still_produces_a_partial_run(offline):
     class DownRouter:
         def complete_json(self, *args, **kwargs):

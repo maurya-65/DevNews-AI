@@ -16,10 +16,10 @@ def reader(**overrides):
 
 def card(article_id, *, topics=("systems",), kind="deep-dive", novelty=6.0, depth=6.0, impact=6.0,
          audience="practitioner", confidence=0.8, is_cs=True, domain=None, sources=("hn",),
-         signal=0.3, hours_ago=2):
+         signal=0.3, hours_ago=2, thread_id=None):
     analysis = Analysis(article_id=article_id, is_cs=is_cs, kind=kind, topics=list(topics),
                         audience=audience, novelty=novelty, depth=depth, impact=impact,
-                        confidence=confidence, summary="s", takeaway=None)
+                        confidence=confidence, summary="s", takeaway=None, thread_id=thread_id)
     return Card(article_id=article_id, title=f"Article {article_id}",
                 url=f"https://site{article_id}.example/", domain=domain or f"site{article_id}.example",
                 first_seen_at=(NOW - timedelta(hours=hours_ago)).isoformat(), published_at=None,
@@ -28,6 +28,32 @@ def card(article_id, *, topics=("systems",), kind="deep-dive", novelty=6.0, dept
 
 def selected(ranked):
     return [r.card.article_id for r in ranked if r.selected]
+
+
+def engaged(thread_id, article_id, how, at="2026-09-01T00:00:00+00:00"):
+    return {"thread_id": thread_id, "article_id": article_id, "title": f"Earlier {article_id}",
+            "how": how, "at": at}
+
+
+def test_a_new_development_in_a_story_you_saved_is_lifted_and_says_so():
+    history = rank.follow_ups([engaged(7, 90, "saved")])
+    ranked = rank.build_edition([card(1, topics=("web",)), card(2, topics=("web",), thread_id=7)],
+                                reader(topics=[]), set(), NOW, history)
+    assert ranked[0].card.article_id == 2
+    assert ranked[0].why.startswith("Follows “Earlier 90”, which you saved")
+    assert ranked[0].components["follows"]["article_id"] == 90
+    assert "follows" not in ranked[1].components
+
+
+def test_follow_ups_name_the_strongest_engagement_and_respect_rejections():
+    history = rank.follow_ups([
+        engaged(1, 10, "shown"), engaged(1, 11, "opened"), engaged(1, 12, "saved"),
+        engaged(2, 20, "saved"), engaged(2, 21, "down"),
+        engaged(3, 30, "opened", at="2026-09-01"), engaged(3, 31, "opened", at="2026-09-09"),
+    ])
+    assert history[1]["article_id"] == 12
+    assert 2 not in history
+    assert history[3]["article_id"] == 31
 
 
 def test_a_followed_topic_outranks_an_equal_article_on_another():

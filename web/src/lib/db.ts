@@ -1,6 +1,7 @@
 import "server-only";
 
 import { authClient } from "@/lib/auth";
+import { sinceDate, tallyReading } from "@/lib/reading-stats";
 import type {
   ArticleCard,
   Edition,
@@ -8,6 +9,7 @@ import type {
   Mention,
   Profile,
   ReaderState,
+  ReadingStats,
   SearchHit,
   StatusData,
   TasteWeight,
@@ -104,6 +106,42 @@ export async function getReaderState(userId: string, articleIds: number[]): Prom
     saved: (saves.data ?? []).map((r) => Number(r.article_id)),
     votes: Object.fromEntries((votes.data ?? []).map((r) => [Number(r.article_id), r.value as 1 | -1])),
   };
+}
+
+export async function getReadingStats(userId: string, days = 30): Promise<ReadingStats> {
+  const supabase = await authClient();
+  const { data: editions, error } = await supabase
+    .from("editions")
+    .select("id")
+    .eq("user_id", userId)
+    .gte("edition_date", sinceDate(days));
+  if (error) fail("stats editions", error.message);
+  const editionIds = (editions ?? []).map((e) => Number(e.id));
+  if (!editionIds.length) return tallyReading(days, 0, [], [], [], []);
+
+  const { data: items, error: itemsError } = await supabase
+    .from("edition_items")
+    .select("article_id")
+    .in("edition_id", editionIds)
+    .eq("selected", true);
+  if (itemsError) fail("stats items", itemsError.message);
+  const kept = [...new Set((items ?? []).map((i) => Number(i.article_id)))];
+  if (!kept.length) return tallyReading(days, editionIds.length, [], [], [], []);
+
+  const [saves, votes, events] = await Promise.all([
+    supabase.from("saves").select("article_id").eq("user_id", userId).in("article_id", kept),
+    supabase.from("votes").select("article_id,value").eq("user_id", userId).in("article_id", kept),
+    supabase
+      .from("events")
+      .select("article_id,kind")
+      .eq("user_id", userId)
+      .in("article_id", kept)
+      .in("kind", ["open", "hide"]),
+  ]);
+  if (saves.error) fail("stats saves", saves.error.message);
+  if (votes.error) fail("stats votes", votes.error.message);
+  if (events.error) fail("stats events", events.error.message);
+  return tallyReading(days, editionIds.length, kept, saves.data ?? [], votes.data ?? [], events.data ?? []);
 }
 
 // ------------------------------------------------------------------------------- editions

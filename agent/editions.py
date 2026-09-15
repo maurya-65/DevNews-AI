@@ -42,17 +42,21 @@ def build_all(store: Store, run_id: int | None, now: datetime) -> dict:
     today = now.date().isoformat()
     cards = store.edition_cards(now)
     readers = store.readers()
-    stats = {"candidates": len(cards), "readers": len(readers), "editions": 0, "quiet": 0, "failed": 0}
+    threads = {c.analysis.thread_id for c in cards if c.analysis.thread_id}
+    stats = {"candidates": len(cards), "readers": len(readers), "editions": 0, "quiet": 0,
+             "failed": 0, "follow_ups": 0}
 
     for reader in readers:
         try:
             shown = store.already_shown(reader.id, today)
-            ranked = rank.build_edition(cards, reader, shown, now)
+            history = rank.follow_ups(store.thread_engagement(reader.id, threads)) if threads else {}
+            ranked = rank.build_edition(cards, reader, shown, now, history)
             store.save_edition(reader.id, run_id, today, ranked, len(cards))
         except Exception as exc:
             stats["failed"] += 1
             print(f"    ! edition for {reader.id}: {type(exc).__name__}: {exc}", file=sys.stderr)
             continue
+        stats["follow_ups"] += sum(1 for r in ranked if r.selected and "follows" in r.components)
         if any(r.selected for r in ranked):
             stats["editions"] += 1
         else:

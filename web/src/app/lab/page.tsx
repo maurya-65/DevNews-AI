@@ -6,11 +6,13 @@ import { PageHeader } from "@/components/page-header";
 import { formatEditionDate } from "@/lib/format";
 import { store } from "@/lib/store";
 import { label, sourceLabel } from "@/lib/taxonomy";
-import type { TasteWeight } from "@/lib/types";
+import type { ReadingStats, TasteWeight } from "@/lib/types";
 import { getViewer } from "@/lib/viewer";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Ranking lab" };
+
+const STATS_DAYS = 30;
 
 function tasteLabel(key: string) {
   const cut = key.indexOf(":");
@@ -52,6 +54,50 @@ function TasteColumn({ title, weights }: { title: string; weights: TasteWeight[]
   );
 }
 
+/** Whether the ranking is working, measured the way the product vision defines it: of the
+ *  stories kept for you, how many you went on to like or save. */
+function Landing({ stats }: { stats: ReadingStats }) {
+  const pct = (n: number) => (stats.kept ? Math.round((100 * n) / stats.kept) : 0);
+  const cells = [
+    { label: "Kept for you", value: String(stats.kept), note: `${stats.editions} editions` },
+    { label: "Opened", value: `${pct(stats.opened)}%`, note: `${stats.opened} stories` },
+    { label: "Liked or saved", value: `${pct(stats.liked)}%`, note: "the number that matters", strong: true },
+    { label: "Pushed away", value: `${pct(stats.pushedAway)}%`, note: "voted down or hidden" },
+  ];
+  return (
+    <section className="mb-14">
+      <h2 className="mb-4 font-mono text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+        Last {stats.days} days
+      </h2>
+      {stats.kept === 0 ? (
+        <p className="text-sm text-muted-foreground">No editions in this window yet.</p>
+      ) : (
+        <>
+          <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-border bg-border sm:grid-cols-4">
+            {cells.map((c) => (
+              <div key={c.label} className="bg-background px-4 py-4">
+                <dt className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">{c.label}</dt>
+                <dd
+                  className={`mt-1.5 font-heading text-2xl font-semibold tabular-nums tracking-[-0.02em] ${
+                    c.strong ? "text-signal" : ""
+                  }`}
+                >
+                  {c.value}
+                </dd>
+                <dd className="mt-0.5 font-mono text-[11px] text-muted-foreground">{c.note}</dd>
+              </div>
+            ))}
+          </dl>
+          <p className="mt-3 max-w-[70ch] text-pretty text-xs leading-relaxed text-muted-foreground">
+            DevNews aims for more than six in ten. Anything you open, save, vote on or hide is
+            folded into your taste on the next run, so this number is the ranking grading itself.
+          </p>
+        </>
+      )}
+    </section>
+  );
+}
+
 /** Every candidate in the reader's latest edition, with its score broken into parts. This
  *  is the page to open when the ranking looks wrong: it shows what the ranker saw. */
 export default async function Lab() {
@@ -60,9 +106,10 @@ export default async function Lab() {
 
   const data = store();
   const edition = await data.getLatestEdition(viewer.user.id);
-  const [items, taste] = await Promise.all([
+  const [items, taste, stats] = await Promise.all([
     edition ? data.getEditionItems(edition.id, false) : Promise.resolve([]),
     data.getTaste(viewer.user.id),
+    data.getReadingStats(viewer.user.id, STATS_DAYS),
   ]);
 
   const leaningIn = taste.filter((t) => t.weight > 0.02).slice(0, 10);
@@ -76,15 +123,17 @@ export default async function Lab() {
         meta={edition ? `${items.length} candidates shown · ${edition.item_count} kept` : undefined}
       />
 
-      <p className="-mt-4 mb-10 max-w-[70ch] text-pretty text-sm leading-relaxed text-muted-foreground">
+      <Landing stats={stats} />
+
+      <p className="mb-10 max-w-[70ch] text-pretty text-sm leading-relaxed text-muted-foreground">
         The model reads each article once, for everyone, and scores novelty, depth and impact.
         Your edition is then ranked in code:{" "}
         <span className="font-mono text-[12px] text-foreground">
           quality × (1 + 0.55 × interest) + signal + freshness
         </span>
-        . Interest comes from the topics you follow plus what you have saved, voted and hidden.
-        The edition takes the best that clear your quality bar, at most three on one topic and
-        one per site.
+        . Interest comes from the topics you follow, what you have saved, voted and hidden, and
+        whether a story continues one you already read. The edition takes the best that clear
+        your quality bar, at most three on one topic and one per site.
       </p>
 
       {items.length === 0 ? (
@@ -142,6 +191,7 @@ export default async function Lab() {
                     </Link>
                     <p className="mt-0.5 font-mono text-[11px]">
                       {item.article.topics.map(label).join(", ") || label(item.article.kind)}
+                      {item.components.follows && <span className="text-signal"> · follow-up</span>}
                       {item.components.note && <span className="text-foreground/70"> · {item.components.note}</span>}
                     </p>
                   </td>

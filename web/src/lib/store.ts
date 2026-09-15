@@ -9,6 +9,7 @@ type Reads = Pick<
   | "getProfile"
   | "getTaste"
   | "getReaderState"
+  | "getReadingStats"
   | "listEditions"
   | "getLatestEdition"
   | "getEdition"

@@ -18,9 +18,12 @@ Everything runs on free tiers. Adding readers adds no model calls.
   (`j`/`k`, `o`, `s`, `u`/`d`, `x`), save and more/less-like-this.
 - **Threads** — stories that develop over days, linked automatically once a second
   article joins one.
+- **Continuity** — when a story you saved, liked or read moves on, the new piece is lifted
+  in your edition and says which earlier article it follows.
 - **Search** — full-text over everything the pipeline has read.
-- **Ranking lab** — every candidate in your edition with its score broken into parts, and
-  what DevNews has learned about your taste.
+- **Ranking lab** — every candidate in your edition with its score broken into parts, what
+  DevNews has learned about your taste, and how many of the last 30 days' picks you went on
+  to like or save.
 - **Status** — each run stage by stage, token usage, source health.
 - **Delivery** — the site, an optional morning email, and a private RSS feed.
 

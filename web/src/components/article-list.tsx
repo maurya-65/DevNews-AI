@@ -5,13 +5,14 @@ import { useEffect, useEffectEvent, useState, useTransition } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { hideArticle, setVote, toggleSave, type ActionResult } from "@/app/actions";
 import { ArticleCardView } from "@/components/article-card";
-import type { ArticleCard, ReaderState } from "@/lib/types";
+import type { ArticleCard, FollowUp, ReaderState } from "@/lib/types";
 
 export type Entry = {
   article: ArticleCard;
   rank?: number;
   why?: string | null;
   relation?: string | null;
+  follows?: FollowUp | null;
 };
 
 const SHORTCUTS = [
@@ -186,6 +187,7 @@ export function ArticleList({
               rank={entry.rank}
               why={entry.why}
               relation={entry.relation}
+              follows={entry.follows}
               saved={saved.has(entry.article.id)}
               vote={votes[entry.article.id] ?? 0}
               signedIn={signedIn}

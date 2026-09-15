@@ -15,7 +15,7 @@ from supabase import Client, create_client
 from agent import config
 from agent.models import Analysis, Card, Draft, Ranked, Reader
 from agent.store.common import (analysis_from_row, analysis_row, card_from_rows, chunks,
-                                context_entries, edition_item_rows, iso, mention_from_row,
+                                context_entries, edition_item_rows, engagement_rows, iso, mention_from_row,
                                 reader_from_row, utcnow)
 from agent.threads import ThreadPlan, slugify
 
@@ -275,6 +275,28 @@ class SupabaseStore:
                     .eq("selected", True).execute().data)
             shown.update(int(r["article_id"]) for r in rows)
         return shown
+
+    def thread_engagement(self, user_id: str, thread_ids: set[int]) -> list[dict]:
+        members = {int(r["article_id"]): int(r["thread_id"]) for r in self._t("analyses")
+                   .select("article_id,thread_id").in_("thread_id", sorted(thread_ids)).execute().data}
+        actions: list[tuple[int, str, str | None]] = []
+        titles: dict[int, str] = {}
+        for chunk in chunks(sorted(members), 200):
+            def mine(table: str, columns: str) -> list[dict]:
+                return (self._t(table).select(columns).eq("user_id", user_id)
+                        .in_("article_id", chunk).execute().data)
+
+            actions += [(int(r["article_id"]), "saved", r["created_at"])
+                        for r in mine("saves", "article_id,created_at")]
+            actions += [(int(r["article_id"]), "upvoted" if r["value"] == 1 else "down", r["created_at"])
+                        for r in mine("votes", "article_id,value,created_at")]
+            actions += [(int(r["article_id"]), "opened" if r["kind"] == "open" else "hid", r["created_at"])
+                        for r in mine("events", "article_id,kind,created_at") if r["kind"] in ("open", "hide")]
+            actions += [(int(r["article_id"]), "shown", None)
+                        for r in mine("edition_items", "article_id,selected") if r["selected"]]
+            titles.update({int(r["id"]): r["title"] for r in
+                           self._t("articles").select("id,title").in_("id", chunk).execute().data})
+        return engagement_rows(members, titles, actions)
 
     def save_edition(self, user_id: str, run_id: int | None, edition_date: str,
                      ranked: list[Ranked], candidate_count: int) -> int:

@@ -130,6 +130,14 @@ def context_entries(threads: list[dict], hints: list[dict]) -> list[dict]:
     return entries[:config.MAX_THREAD_CONTEXT]
 
 
+def engagement_rows(members: dict[int, int], titles: dict[int, str],
+                    actions: list[tuple[int, str, str | None]]) -> list[dict]:
+    """(article, how, when) actions on thread members, in the shape rank.follow_ups reads."""
+    return [{"thread_id": members[article_id], "article_id": article_id,
+             "title": titles.get(article_id, ""), "how": how, "at": at}
+            for article_id, how, at in actions if article_id in members]
+
+
 def edition_item_rows(edition_id: int, user_id: str, ranked: list[Ranked]) -> list[dict]:
     """Every selected item plus the top of the rest, so the lab page can show near misses."""
     keep = [r for r in ranked if r.selected or r.rank <= config.EDITION_STORE_TOP]

@@ -121,31 +121,71 @@ def _why(card: Card, reasons: list[str]) -> str:
     return text[0].upper() + text[1:]
 
 
-def score(card: Card, reader: Reader, now: datetime) -> Ranked:
+# Strongest engagement first: the earlier article a follow-up should name.
+FOLLOW_UP_PRIORITY = ("saved", "upvoted", "opened", "shown")
+FOLLOW_UP_PHRASE = {"saved": "which you saved", "upvoted": "which you liked",
+                    "opened": "which you read", "shown": "from an earlier edition"}
+
+
+def follow_ups(engagement: list[dict]) -> dict[int, dict]:
+    """For each thread, the one earlier article worth reminding the reader of.
+
+    `engagement` rows carry thread_id, article_id, title, how and at, where how is one of
+    FOLLOW_UP_PRIORITY or a rejection ("down", "hid"). A thread the reader pushed away
+    anywhere is left alone: a story they voted down is not one to pull them back into.
+    """
+    rejected = {e["thread_id"] for e in engagement if e["how"] in ("down", "hid")}
+    usable = [e for e in engagement if e["how"] in FOLLOW_UP_PRIORITY and e["thread_id"] not in rejected]
+    usable.sort(key=lambda e: e.get("at") or "", reverse=True)          # most recent first...
+    usable.sort(key=lambda e: FOLLOW_UP_PRIORITY.index(e["how"]))       # ...within each kind
+    best: dict[int, dict] = {}
+    for e in usable:
+        best.setdefault(e["thread_id"], {k: e.get(k) for k in ("article_id", "title", "how", "at")})
+    return best
+
+
+def _short(title: str) -> str:
+    limit = config.FOLLOW_UP_TITLE_CHARS
+    return title if len(title) <= limit else title[:limit - 1].rstrip() + "…"
+
+
+def score(card: Card, reader: Reader, now: datetime, follows: dict | None = None) -> Ranked:
     q = quality(card, reader.level)
     i, reasons = interest(card, reader)
     f = freshness(card, now)
     signal_points = round(config.SIGNAL_POINTS * card.signal, 3)
+    components: dict = {"quality": q, "interest": i, "signal": signal_points, "freshness": f}
+    if follows and follows.get("article_id") != card.article_id:
+        i = round(_clamp(i + config.FOLLOW_UP_INTEREST), 3)
+        components["interest"] = i
+        components["follows"] = follows
+        reasons.insert(0, f"follows “{_short(follows.get('title') or 'an earlier story')}”, "
+                          f"{FOLLOW_UP_PHRASE[follows['how']]}")
     total = round(q * (1 + config.INTEREST_BOOST * i) + signal_points + f, 3)
     return Ranked(
         card=card,
         score=total,
-        components={"quality": q, "interest": i, "signal": signal_points, "freshness": f},
+        components=components,
         why=_why(card, reasons),
         excluded=exclusion(card, reader),
     )
 
 
 def build_edition(cards: list[Card], reader: Reader, already_shown: set[int],
-                  now: datetime | None = None) -> list[Ranked]:
+                  now: datetime | None = None, history: dict[int, dict] | None = None) -> list[Ranked]:
     """Every eligible candidate, ranked, with the edition's picks marked selected.
 
     The size is a ceiling and the quality bar is a floor, so a thin day produces a short
     edition, and a day where nothing clears the bar produces an empty one. Padding a slow
     day with filler costs a reader's trust faster than a quiet day does.
+
+    `history` is `follow_ups()` output: thread id to the earlier article this reader engaged
+    with, so a new development in a story they care about is lifted and says so.
     """
     now = now or datetime.now(timezone.utc)
-    ranked = [score(c, reader, now) for c in cards if c.article_id not in already_shown]
+    history = history or {}
+    ranked = [score(c, reader, now, history.get(c.analysis.thread_id) if c.analysis.thread_id else None)
+              for c in cards if c.article_id not in already_shown]
     ranked.sort(key=lambda r: r.score, reverse=True)
 
     per_topic: Counter[str] = Counter()

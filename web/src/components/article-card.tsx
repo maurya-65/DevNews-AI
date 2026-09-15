@@ -4,7 +4,7 @@ import Link from "next/link";
 import { motion, useReducedMotion } from "motion/react";
 import { readingMinutes } from "@/lib/format";
 import { label, sourceLabel } from "@/lib/taxonomy";
-import type { ArticleCard as Article } from "@/lib/types";
+import type { ArticleCard as Article, FollowUp } from "@/lib/types";
 
 const RELATION: Record<string, string> = {
   opens: "First report",
@@ -12,6 +12,19 @@ const RELATION: Record<string, string> = {
   reacts: "Reaction",
   context: "Background",
 };
+
+const FOLLOWED_BECAUSE: Record<FollowUp["how"], string> = {
+  saved: "you saved it",
+  upvoted: "you liked it",
+  opened: "you read it",
+  shown: "in an earlier edition",
+};
+
+/** The follow-up line names the earlier article itself, so drop the same clause from `why`. */
+function withoutFollowClause(why: string) {
+  const rest = why.replace(/^Follows “[^”]*”, [^;]*(; )?/, "");
+  return rest ? rest[0].toUpperCase() + rest.slice(1) : "";
+}
 
 function Icon({ d, filled = false }: { d: string; filled?: boolean }) {
   return (
@@ -69,6 +82,7 @@ export type CardProps = {
   rank?: number;
   why?: string | null;
   relation?: string | null;
+  follows?: FollowUp | null;
   saved: boolean;
   vote: 1 | -1 | 0;
   signedIn: boolean;
@@ -79,12 +93,14 @@ export type CardProps = {
 };
 
 /** One story. Everything a reader needs to decide without clicking: what it says, what to
- *  take from it, why it is here, and where people are discussing it. */
+ *  take from it, why it is here, where people are discussing it, and which earlier piece
+ *  of the same story the reader already knows. */
 export function ArticleCardView({
   article,
   rank,
   why,
   relation,
+  follows,
   saved,
   vote,
   signedIn,
@@ -134,6 +150,19 @@ export function ArticleCardView({
             )}
           </p>
 
+          {follows && (
+            <p className="mt-2 text-pretty font-mono text-[11px] leading-relaxed text-muted-foreground">
+              <span className="text-signal">Follows up</span> on{" "}
+              <Link
+                href={`/article/${follows.article_id}`}
+                className="text-foreground/80 underline-offset-4 hover:text-foreground hover:underline"
+              >
+                {follows.title}
+              </Link>
+              <span className="text-muted-foreground/60"> · {FOLLOWED_BECAUSE[follows.how]}</span>
+            </p>
+          )}
+
           <h2 className="mt-2 text-pretty text-[20px] font-medium leading-[1.32] tracking-[-0.016em]">
             <a
               href={href}
@@ -156,7 +185,11 @@ export function ArticleCardView({
             </p>
           )}
 
-          {why && <p className="mt-3 font-mono text-[11px] leading-relaxed text-muted-foreground/80">↳ {why}</p>}
+          {why && (follows ? withoutFollowClause(why) : why) && (
+            <p className="mt-3 font-mono text-[11px] leading-relaxed text-muted-foreground/80">
+              ↳ {follows ? withoutFollowClause(why) : why}
+            </p>
+          )}
 
           <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2">
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[11px] text-muted-foreground">

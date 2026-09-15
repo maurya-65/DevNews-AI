@@ -45,7 +45,12 @@ export async function EditionScreen({
         />
       ) : (
         <ArticleList
-          entries={items.map((item, index) => ({ article: item.article, why: item.why, rank: index + 1 }))}
+          entries={items.map((item, index) => ({
+            article: item.article,
+            why: item.why,
+            rank: index + 1,
+            follows: item.components?.follows ?? null,
+          }))}
           initialState={readerState}
           signedIn
           allowHide

@@ -5,12 +5,14 @@ import path from "node:path";
 
 import { rankForEveryone, toCard } from "@/lib/db";
 import { FIXTURE_USER_ID } from "@/lib/fixture-mode";
+import { sinceDate, tallyReading } from "@/lib/reading-stats";
 import type {
   ArticleCard,
   Edition,
   EditionItem,
   Profile,
   ReaderState,
+  ReadingStats,
   SearchHit,
   StatusData,
   TasteWeight,
@@ -96,6 +98,20 @@ export async function getReaderState(userId: string, articleIds: number[]): Prom
       s.votes.filter((r) => r.user_id === userId && wanted.has(r.article_id)).map((r) => [r.article_id, r.value]),
     ),
   };
+}
+
+export async function getReadingStats(userId: string, days = 30): Promise<ReadingStats> {
+  const s = state();
+  const since = sinceDate(days);
+  const editionIds = new Set(
+    s.editions.filter((e) => e.user_id === userId && e.edition_date >= since).map((e) => e.id),
+  );
+  const kept = [
+    ...new Set(s.edition_items.filter((i) => editionIds.has(i.edition_id) && i.selected).map((i) => i.article_id)),
+  ];
+  type Action = { article_id: number; value: unknown; kind: unknown };
+  const mine = (rows: Row[]) => rows.filter((r) => r.user_id === userId) as Action[];
+  return tallyReading(days, editionIds.size, kept, mine(s.saves), mine(s.votes), mine(s.events));
 }
 
 export async function listEditions(userId: string, limit = 120): Promise<Edition[]> {

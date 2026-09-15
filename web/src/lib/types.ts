@@ -34,6 +34,14 @@ export type ArticleCard = {
   mentions: Mention[];
 };
 
+/** The earlier article in the same story this reader engaged with. See rank.follow_ups. */
+export type FollowUp = {
+  article_id: number;
+  title: string;
+  how: "saved" | "upvoted" | "opened" | "shown";
+  at: string | null;
+};
+
 /** How the ranker arrived at a score. See agent/rank.py. */
 export type Components = {
   quality: number;
@@ -41,6 +49,17 @@ export type Components = {
   signal: number;
   freshness: number;
   note?: string;
+  follows?: FollowUp;
+};
+
+/** How a reader's editions have landed with them over a window of days. */
+export type ReadingStats = {
+  days: number;
+  editions: number;
+  kept: number;
+  opened: number;
+  liked: number;
+  pushedAway: number;
 };
 
 export type Edition = {
