@@ -7,6 +7,7 @@ GOOD = "https://abcdefghijklmnopqrst.supabase.co"
 
 @pytest.mark.parametrize("raw", [
     GOOD,
+    "﻿" + GOOD,
     f"  {GOOD}\n",
     f'"{GOOD}"',
     f"'{GOOD}/'",

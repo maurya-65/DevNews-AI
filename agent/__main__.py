@@ -94,12 +94,10 @@ def cmd_check(_args) -> int:
         state = "ok" if present else ("MISSING" if required else "not set")
         print(f"  {state:8} {key}")
         ok = ok and (present or not required)
-    if os.environ.get("SUPABASE_URL", "").strip():
-        from agent.store.urls import describe
-        problems = describe(os.environ["SUPABASE_URL"])
-        if problems:
-            print(f"  note     SUPABASE_URL had {problems}; corrected automatically, "
-                  "but fix the secret when you can")
+    from agent.env import CORRECTIONS
+    for key, problems in CORRECTIONS.items():
+        print(f"  note     {key} had {', '.join(problems)}; corrected for this run, "
+              "but re-save the secret when you can")
     if not (os.environ.get("GEMINI_API_KEY") or os.environ.get("GROQ_API_KEY")):
         print("  MISSING  a model key: set GEMINI_API_KEY or GROQ_API_KEY")
         ok = False
@@ -126,6 +124,8 @@ def cmd_check(_args) -> int:
 
 def main(argv: list[str] | None = None) -> int:
     load_dotenv(ROOT / ".env")
+    from agent.env import sanitize
+    sanitize(os.environ)
     parser = argparse.ArgumentParser(prog="python -m agent", description="DevNews pipeline")
     sub = parser.add_subparsers(dest="command", required=True)
 
