@@ -17,12 +17,13 @@ from agent.models import Analysis, Card, Draft, Ranked, Reader
 from agent.store.common import (analysis_from_row, analysis_row, card_from_rows, chunks,
                                 context_entries, edition_item_rows, engagement_rows, iso, mention_from_row,
                                 reader_from_row, utcnow)
+from agent.store.urls import supabase_url
 from agent.threads import ThreadPlan, slugify
 
 
 class SupabaseStore:
     def __init__(self) -> None:
-        url = os.environ.get("SUPABASE_URL", "").strip()
+        url = supabase_url(os.environ.get("SUPABASE_URL", ""))
         key = os.environ.get("SUPABASE_SERVICE_KEY", "").strip()
         if not url or not key:
             raise RuntimeError("SUPABASE_URL and SUPABASE_SERVICE_KEY must be set "
