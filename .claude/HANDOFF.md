@@ -1,9 +1,10 @@
 # Handoff
 
 **Last updated:** 2026-09-15
-**Branch:** `main` (v2 merged from `rebuild/v2`)
-**State:** v2 runs daily on GitHub Actions against production Supabase. The site is built
-and checked but not yet deployed — that step needs a Vercel login (SETUP.txt §4).
+**Branch:** `rebuild/v2` — PR #2 into `main` is open, checks green, waiting for review.
+**State:** v2 has run green on GitHub Actions against production Supabase (dispatched from
+the branch). Until PR #2 merges, the 06:30 UTC cron on `main` still runs v1 and still fails.
+The site is built and checked but not yet deployed — that needs a Vercel login (SETUP.txt §4).
 
 ---
 
