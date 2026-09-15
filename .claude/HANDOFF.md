@@ -34,15 +34,16 @@ No model call is made per user. See `README.md` and `docs/ARCHITECTURE.md`; deci
 
 - Signed-in pages against real Supabase (editions, saved, lab, settings save, votes/saves
   writing through RLS). Fixture mode covers the rendering; RLS writes need a real login.
-- The GitHub Actions workflows on GitHub itself (`daily.yml`, `ci.yml`) — they have only
-  run locally in equivalent form.
+- `daily.yml` on GitHub itself — it has only run locally in equivalent form. (`ci.yml` is
+  green on GitHub: run 35014108621, agent tests plus web lint, tsc and build.)
 - Email: code path exists, needs `RESEND_API_KEY` + `EMAIL_FROM` to test.
 
 ## Next
 
 1. Sign in on the site and exercise save / vote / hide, then run `python -m agent editions`
    and confirm the lab shows learned taste.
-2. Push `rebuild/v2`, watch `ci.yml`, then merge and let `daily.yml` run on schedule.
+2. `rebuild/v2` is pushed and CI is green. Dispatch `daily.yml` once from the branch, then
+   merge and let it run on schedule.
 3. After a week of editions, run the "Retiring v1" statements at the bottom of the migration.
 4. Gemini 3.8 Flash has been overloaded all week. If it stays that way, set
    `LLM_PROVIDER=groq` in the workflow so the fallback stops costing a retry per batch.
