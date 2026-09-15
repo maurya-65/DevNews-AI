@@ -82,6 +82,15 @@ _koi nahi_
 
 ## Session log
 
+### 2026-09-15 — cron theek, v2 main pe
+Hafte bhar ke failed crons ki asli wajah mili: chaaron GitHub secrets ke shuru mein UTF-8
+BOM (`﻿`) tha — PowerShell 5.1 mein `gh secret set` ko pipe karne se aata hai, aur
+Python ka `strip()` use nahi hataata. `agent/env.py` start-up pe har value saaf karta hai,
+`agent check` sirf key ka naam batata hai, value kabhi nahi. Production jaisa BOM laga ke
+local `agent check` pass kiya, phir GitHub pe run 35016936420 green: 44 articles, 4 calls
+(Gemini chaaron baar 503, Groq ne sambhala), 1 edition. SETUP.txt v0 ka tha — poora
+naya likha, Vercel deploy ke saath. `rebuild/v2` → `main` merge.
+
 ### 2026-09-15 — continuity aur precision (decisions 26-27)
 v2 ko PRODUCT_VISION ke saamne rakh ke dekha: sab chal raha tha, par core bet (story over time,
 *reader ke liye*) aur precision@k dono gayab the. Dono code mein add kiye, zero model calls,
