@@ -1,13 +1,16 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
+import { fixtureMode } from "@/lib/fixture-mode";
 
-/** Everything a signed-out visitor is allowed to reach. Nothing else in the app is
- *  public: there is no shared digest any more, so an anonymous page has nothing on it. */
-const PUBLIC_PATHS = ["/login", "/auth"];
+/** Everything a signed-out visitor is allowed to reach. The shared editorial data (threads,
+ *  articles, search, pipeline status) is public by design; editions, saved articles, the
+ *  lab and preferences are personal and stay behind sign-in. /r and /feed handle their own
+ *  authorisation: /r records an open only for a signed-in reader, /feed checks its token. */
+const PUBLIC_PATHS = ["/login", "/auth", "/threads", "/article", "/search", "/status", "/r", "/feed"];
 
 function isPublic(pathname: string) {
   // The root alone, not as a prefix — "/" as a prefix would make every path public.
-  // Signed out it is the landing page; signed in the same route is the digest.
+  // Signed out it is the landing page; signed in the same route is today's edition.
   if (pathname === "/") return true;
   return PUBLIC_PATHS.some(
     (p) => pathname === p || pathname.startsWith(`${p}/`),
@@ -23,6 +26,9 @@ function isPublic(pathname: string) {
  *  the only line of defence.
  */
 export async function proxy(request: NextRequest) {
+  // Fixture mode has no Supabase to ask; the stand-in reader is always signed in.
+  if (fixtureMode()) return NextResponse.next({ request });
+
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient(

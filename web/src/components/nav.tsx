@@ -3,18 +3,24 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, useReducedMotion } from "motion/react";
-import { ArchiveIcon, Mark, PrefsIcon, TodayIcon } from "@/components/icons";
+import { Mark, TodayIcon } from "@/components/icons";
+import { SavedIcon, SearchIcon, ThreadsIcon } from "@/components/nav-icons";
 import { ProfileMenu } from "@/components/profile-menu";
 import type { Identity } from "@/lib/identity";
 
-const SIGNED_IN_LINKS = [
+const READER_LINKS = [
   { href: "/", label: "Today", Icon: TodayIcon },
-  { href: "/archive", label: "Archive", Icon: ArchiveIcon },
-  { href: "/settings", label: "Preferences", Icon: PrefsIcon },
+  { href: "/threads", label: "Threads", Icon: ThreadsIcon },
+  { href: "/saved", label: "Saved", Icon: SavedIcon },
+  { href: "/search", label: "Search", Icon: SearchIcon },
 ] as const;
 
-/** One nav entry. Owns the hover state that the icon's variants listen to — the icon
- *  itself declares `rest`/`hover`/`active` and Motion propagates whichever is set here. */
+const VISITOR_LINKS = [
+  { href: "/threads", label: "Threads", Icon: ThreadsIcon },
+  { href: "/search", label: "Search", Icon: SearchIcon },
+] as const;
+
+/** One nav entry. Owns the hover state the icon's variants listen to. */
 function NavItem({
   href,
   label,
@@ -27,95 +33,61 @@ function NavItem({
   active: boolean;
 }) {
   const reduced = useReducedMotion();
-
   return (
-    <Link href={href} aria-current={active ? "page" : undefined}>
+    <Link href={href} aria-current={active ? "page" : undefined} aria-label={label}>
       <motion.span
         initial={false}
         animate={active ? "active" : "rest"}
         whileHover="hover"
         whileTap={reduced ? undefined : { scale: 0.96 }}
         className={`relative flex h-8 items-center gap-2 rounded-lg px-2.5 text-sm transition-colors ${
-          active
-            ? "text-foreground"
-            : "text-muted-foreground hover:text-foreground"
+          active ? "text-foreground" : "text-muted-foreground hover:text-foreground"
         }`}
       >
         {active && (
           <motion.span
             layoutId="nav-active"
             className="absolute inset-0 -z-10 rounded-lg bg-muted"
-            transition={
-              reduced
-                ? { duration: 0 }
-                : { type: "spring", stiffness: 400, damping: 32 }
-            }
+            transition={reduced ? { duration: 0 } : { type: "spring", stiffness: 400, damping: 32 }}
           />
         )}
         <Icon />
-        <span className="hidden sm:inline">{label}</span>
+        <span className="hidden md:inline">{label}</span>
       </motion.span>
     </Link>
   );
 }
 
-export function Nav({
-  showDebug,
-  identity,
-}: {
-  showDebug: boolean;
-  identity: Identity | null;
-}) {
-  const signedIn = identity !== null;
+export function Nav({ identity, width }: { identity: Identity | null; width: string }) {
   const pathname = usePathname();
-  const isActive = (href: string) =>
-    href === "/" ? pathname === "/" : pathname.startsWith(href);
+  const links = identity ? READER_LINKS : VISITOR_LINKS;
+  const isActive = (href: string) => (href === "/" ? pathname === "/" : pathname.startsWith(href));
 
   return (
     <header className="sticky top-0 z-20 border-b border-border/60 bg-background/70 backdrop-blur-md">
-      <div className="mx-auto flex h-14 max-w-3xl items-center justify-between gap-4 px-6">
+      <div className={`mx-auto flex h-14 items-center justify-between gap-4 px-6 ${width}`}>
         <Link href="/" className="flex items-center gap-2.5">
           <Mark />
-          <span className="font-heading text-[15px] font-semibold tracking-[-0.02em]">
-            DevNews
-          </span>
+          <span className="font-heading text-[15px] font-semibold tracking-[-0.02em]">DevNews</span>
         </Link>
 
         <nav className="flex items-center gap-0.5">
-          {signedIn &&
-            SIGNED_IN_LINKS.map(({ href, label, Icon }) => (
-              <NavItem
-                key={href}
-                href={href}
-                label={label}
-                Icon={Icon}
-                active={isActive(href)}
-              />
-            ))}
+          {links.map(({ href, label, Icon }) => (
+            <NavItem key={href} href={href} label={label} Icon={Icon} active={isActive(href)} />
+          ))}
 
-          {!signedIn && (
-            <Link
-              href="/login"
-              className="flex h-8 items-center rounded-lg px-2.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
-            >
-              Sign in
-            </Link>
-          )}
-
-          {showDebug && signedIn && (
-            <Link
-              href="/debug"
-              className="flex h-8 items-center rounded-lg px-2.5 font-mono text-xs text-muted-foreground/40 transition-colors hover:text-foreground"
-            >
-              debug
-            </Link>
-          )}
-
-          {identity && (
+          {identity ? (
             <>
               <span className="mx-1.5 h-4 w-px bg-border" />
               <ProfileMenu identity={identity} />
             </>
+          ) : (
+            <Link
+              href="/login"
+              className="ml-1 flex h-8 items-center rounded-lg px-2.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
+            >
+              Sign in
+            </Link>
           )}
         </nav>
       </div>

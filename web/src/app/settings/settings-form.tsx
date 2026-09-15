@@ -1,57 +1,53 @@
 "use client";
 
 import * as React from "react";
-import { useActionState } from "react";
+import { useActionState, useState, useTransition } from "react";
+import Link from "next/link";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { AVOID_OPTIONS, LEVEL_OPTIONS, TOPIC_OPTIONS, type Profile } from "@/lib/options";
-import { saveSettings, type SaveResult } from "./actions";
+import { KINDS, LEVELS, SOURCES, TOPICS } from "@/lib/taxonomy";
+import type { Profile } from "@/lib/types";
+import { regenerateFeedToken, savePreferences, type SaveResult } from "./save";
 
-/** Preferences is the product, not a settings page — it is the only place a person tells
- *  the model what they care about. So it reads top to bottom as one page: nesting it in a
- *  second row of tabs under the Profile nav would hide two thirds of it behind a click.
- */
+/** Preferences are a starting point, not the whole story: every save, vote and hide also
+ *  teaches the ranker. So this page stays short and legible, reads top to bottom, and ends
+ *  with the settings said back as one sentence. */
 
-function Section({
-  title,
-  description,
-  children,
-}: {
-  title: string;
-  description: string;
-  children: React.ReactNode;
-}) {
+type TopicState = "follow" | "neutral" | "mute";
+const NEXT_STATE: Record<TopicState, TopicState> = { neutral: "follow", follow: "mute", mute: "neutral" };
+
+function Section({ title, description, children }: { title: string; description: string; children: React.ReactNode }) {
   return (
     <section className="space-y-4">
       <div className="space-y-1">
-        <h2 className="font-heading text-base font-semibold tracking-[-0.02em]">
-          {title}
-        </h2>
-        <p className="max-w-[62ch] text-pretty text-sm leading-relaxed text-muted-foreground">
-          {description}
-        </p>
+        <h2 className="font-heading text-base font-semibold tracking-[-0.02em]">{title}</h2>
+        <p className="max-w-[62ch] text-pretty text-sm leading-relaxed text-muted-foreground">{description}</p>
       </div>
       {children}
     </section>
   );
 }
 
-/** A selectable card. Inverts to solid on selection rather than tinting, so the chosen
- *  set is legible at a glance instead of being a slightly different shade of grey. */
 function Pick({
   selected,
   label,
   hint,
   onToggle,
+  tone = "solid",
 }: {
   selected: boolean;
   label: string;
   hint: string;
   onToggle: () => void;
+  tone?: "solid" | "muted";
 }) {
   const reduced = useReducedMotion();
+  const on =
+    tone === "solid"
+      ? "bg-foreground text-background ring-transparent"
+      : "bg-muted/50 text-muted-foreground line-through decoration-foreground/40 ring-border";
   return (
     <motion.button
       type="button"
@@ -60,19 +56,54 @@ function Pick({
       whileTap={reduced ? undefined : { scale: 0.985 }}
       transition={{ type: "spring", stiffness: 420, damping: 28 }}
       className={`rounded-xl p-3.5 text-left ring-1 transition-colors ${
-        selected
-          ? "bg-foreground text-background ring-transparent"
-          : "bg-transparent ring-border hover:bg-muted/40"
+        selected ? on : "bg-transparent ring-border hover:bg-muted/40"
       }`}
     >
       <span className="block text-sm font-medium leading-none">{label}</span>
       <span
-        className={`mt-1.5 block text-xs leading-relaxed ${
-          selected ? "text-background/70" : "text-muted-foreground"
+        className={`mt-1.5 block text-xs leading-relaxed no-underline ${
+          selected && tone === "solid" ? "text-background/70" : "text-muted-foreground"
         }`}
       >
         {hint}
       </span>
+    </motion.button>
+  );
+}
+
+function TopicChip({
+  label,
+  description,
+  state,
+  onCycle,
+}: {
+  label: string;
+  description: string;
+  state: TopicState;
+  onCycle: () => void;
+}) {
+  const reduced = useReducedMotion();
+  const styles: Record<TopicState, string> = {
+    follow: "bg-foreground text-background ring-transparent",
+    neutral: "ring-border hover:bg-muted/40",
+    mute: "bg-muted/40 text-muted-foreground ring-dashed ring-border",
+  };
+  return (
+    <motion.button
+      type="button"
+      onClick={onCycle}
+      title={description}
+      aria-label={`${label}: ${state === "neutral" ? "no preference" : state === "follow" ? "following" : "muted"}`}
+      whileTap={reduced ? undefined : { scale: 0.96 }}
+      transition={{ type: "spring", stiffness: 420, damping: 28 }}
+      className={`inline-flex h-9 items-center gap-2 rounded-full px-3.5 text-sm ring-1 transition-colors ${styles[state]}`}
+    >
+      <span className={state === "mute" ? "line-through decoration-foreground/40" : ""}>{label}</span>
+      {state !== "neutral" && (
+        <span className="font-mono text-[10px] uppercase tracking-[0.12em] opacity-70">
+          {state === "follow" ? "follow" : "muted"}
+        </span>
+      )}
     </motion.button>
   );
 }
@@ -104,9 +135,7 @@ function Range({
         <label htmlFor={name} className="text-sm font-medium">
           {label}
         </label>
-        <span className="font-mono text-[13px] tabular-nums text-muted-foreground">
-          {format ? format(value) : value}
-        </span>
+        <span className="font-mono text-[13px] tabular-nums text-muted-foreground">{format ? format(value) : value}</span>
       </div>
       <input
         id={name}
@@ -124,177 +153,264 @@ function Range({
   );
 }
 
+function Switch({
+  name,
+  checked,
+  onChange,
+  label,
+  hint,
+}: {
+  name: string;
+  checked: boolean;
+  onChange: (next: boolean) => void;
+  label: string;
+  hint: string;
+}) {
+  return (
+    <label className="flex cursor-pointer items-start justify-between gap-6 rounded-xl p-3.5 ring-1 ring-border transition-colors hover:bg-muted/30">
+      <span>
+        <span className="block text-sm font-medium">{label}</span>
+        <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">{hint}</span>
+      </span>
+      <input
+        type="checkbox"
+        name={name}
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        className="peer sr-only"
+      />
+      <span
+        aria-hidden
+        className={`relative mt-0.5 h-5 w-9 shrink-0 rounded-full transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-ring ${
+          checked ? "bg-signal" : "bg-muted"
+        }`}
+      >
+        <span
+          className={`absolute top-0.5 size-4 rounded-full bg-background shadow-sm transition-transform ${
+            checked ? "translate-x-4" : "translate-x-0.5"
+          }`}
+        />
+      </span>
+    </label>
+  );
+}
+
 function joinWords(items: string[]) {
-  if (items.length === 0) return "";
-  if (items.length === 1) return items[0];
+  if (items.length <= 1) return items[0] ?? "";
   return `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}`;
 }
 
-export function SettingsForm({ prefs }: { prefs: Profile }) {
-  const [state, action, pending] = useActionState<SaveResult | null, FormData>(
-    saveSettings,
-    null,
+export function SettingsForm({ profile, feedBase }: { profile: Profile; feedBase: string }) {
+  const [state, action, pending] = useActionState<SaveResult | null, FormData>(savePreferences, null);
+
+  const [level, setLevel] = useState<string>(profile.level ?? "working");
+  const [topics, setTopics] = useState<Record<string, TopicState>>(() =>
+    Object.fromEntries(
+      TOPICS.map((t) => [
+        t.id,
+        (profile.topics ?? []).includes(t.id)
+          ? "follow"
+          : (profile.muted_topics ?? []).includes(t.id)
+            ? "mute"
+            : "neutral",
+      ]),
+    ),
   );
+  const [mutedKinds, setMutedKinds] = useState<string[]>(profile.muted_kinds ?? []);
+  const [sourcesOff, setSourcesOff] = useState<string[]>(profile.sources_off ?? []);
+  const [size, setSize] = useState(profile.select_count ?? 8);
+  const [bar, setBar] = useState(Number(profile.min_score ?? 5));
+  const [includeGeneral, setIncludeGeneral] = useState(Boolean(profile.include_general));
+  const [email, setEmail] = useState(Boolean(profile.email_digest));
 
-  const [topics, setTopics] = React.useState<string[]>(prefs.topics);
-  const [avoid, setAvoid] = React.useState<string[]>(prefs.avoid);
-  const [level, setLevel] = React.useState<string>(prefs.level);
-  const [selectCount, setSelectCount] = React.useState(prefs.select_count);
-  const [minScore, setMinScore] = React.useState(prefs.min_score);
-  const [hn, setHn] = React.useState(prefs.hn_quota);
-  const [lobsters, setLobsters] = React.useState(prefs.lobsters_quota);
-  const [blogs, setBlogs] = React.useState(prefs.blogs_quota);
+  const [token, setToken] = useState(profile.feed_token);
+  const [feedMessage, setFeedMessage] = useState<string | null>(null);
+  const [confirmRotate, setConfirmRotate] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [rotating, startRotate] = useTransition();
 
-  const toggle = (
-    list: string[],
-    setList: (next: string[]) => void,
-    id: string,
-  ) => setList(list.includes(id) ? list.filter((x) => x !== id) : [...list, id]);
+  const toggle = (list: string[], set: (next: string[]) => void, id: string) =>
+    set(list.includes(id) ? list.filter((x) => x !== id) : [...list, id]);
 
-  const pool = hn + lobsters + blogs;
-  const levelLabel = LEVEL_OPTIONS.find((l) => l.id === level)?.label ?? "";
-  const wanted = TOPIC_OPTIONS.filter((t) => topics.includes(t.id)).map((t) =>
-    t.label.toLowerCase(),
-  );
-  const skipped = AVOID_OPTIONS.filter((a) => avoid.includes(a.id)).map((a) =>
-    a.label.toLowerCase(),
-  );
+  const followed = TOPICS.filter((t) => topics[t.id] === "follow");
+  const muted = TOPICS.filter((t) => topics[t.id] === "mute");
+  const levelLabel = LEVELS.find((l) => l.id === level)?.label.toLowerCase() ?? "working engineer";
+  const feedUrl = token ? `${feedBase}${token}` : null;
 
-  // The form posts these rather than the controls themselves, so the server action keeps
-  // taking a plain FormData and nothing depends on base-ui's form integration.
   const hidden = [
-    ...topics.map((t) => ["topics", t] as const),
-    ...avoid.map((a) => ["avoid", a] as const),
-    ["level", level] as const,
-  ];
+    ["level", level],
+    ...followed.map((t) => ["topics", t.id]),
+    ...muted.map((t) => ["muted_topics", t.id]),
+    ...mutedKinds.map((k) => ["muted_kinds", k]),
+    ...sourcesOff.map((s) => ["sources_off", s]),
+  ] as const;
+
+  function rotate() {
+    if (!confirmRotate) return setConfirmRotate(true);
+    startRotate(async () => {
+      const result = await regenerateFeedToken();
+      if (result.ok && result.token) setToken(result.token);
+      setFeedMessage(result.message);
+      setConfirmRotate(false);
+    });
+  }
+
+  async function copy() {
+    if (!feedUrl) return;
+    await navigator.clipboard.writeText(feedUrl);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1800);
+  }
 
   return (
     <form action={action}>
       <div className="space-y-12">
         <Section
-          title="What you want"
-          description="Picked topics are described to the model in prose, not matched as keywords. It still judges every item on merit — this tilts the scoring, it does not filter."
-        >
-          <div className="grid gap-2.5 sm:grid-cols-2">
-            {TOPIC_OPTIONS.map((opt) => (
-              <Pick
-                key={opt.id}
-                selected={topics.includes(opt.id)}
-                label={opt.label}
-                hint={opt.hint}
-                onToggle={() => toggle(topics, setTopics, opt.id)}
-              />
-            ))}
-          </div>
-        </Section>
-
-        <Section
-          title="What to skip"
-          description="Scored down hard rather than filtered out, so a genuinely important story in one of these categories can still make it through."
-        >
-          <div className="grid gap-2.5 sm:grid-cols-2">
-            {AVOID_OPTIONS.map((opt) => (
-              <Pick
-                key={opt.id}
-                selected={avoid.includes(opt.id)}
-                label={opt.label}
-                hint={opt.hint}
-                onToggle={() => toggle(avoid, setAvoid, opt.id)}
-              />
-            ))}
-          </div>
-        </Section>
-
-        <Section
-          title="How deep"
-          description="Changes what gets picked, not only how it is written. 'Still learning' stops the model penalising clear explanations of established topics."
+          title="How you read"
+          description="Changes what counts as good, not only which topics win. 'Still learning' stops penalising clear explanations of established ideas; 'Deep' favours specialist material."
         >
           <div className="grid gap-2.5 sm:grid-cols-3">
-            {LEVEL_OPTIONS.map((opt) => (
-              <Pick
-                key={opt.id}
-                selected={level === opt.id}
-                label={opt.label}
-                hint={opt.hint}
-                onToggle={() => setLevel(opt.id)}
+            {LEVELS.map((opt) => (
+              <Pick key={opt.id} selected={level === opt.id} label={opt.label} hint={opt.hint} onToggle={() => setLevel(opt.id)} />
+            ))}
+          </div>
+        </Section>
+
+        <Section
+          title="Topics"
+          description="Click once to follow, again to mute, once more to reset. Following lifts a story in your edition; muting keeps it out entirely, however good it is. Everything you save and vote on adjusts these further."
+        >
+          <div className="flex flex-wrap gap-2">
+            {TOPICS.map((topic) => (
+              <TopicChip
+                key={topic.id}
+                label={topic.label}
+                description={topic.description}
+                state={topics[topic.id]}
+                onCycle={() => setTopics((current) => ({ ...current, [topic.id]: NEXT_STATE[current[topic.id]] }))}
               />
             ))}
           </div>
         </Section>
 
         <Section
-          title="How much survives"
-          description="A ceiling and a bar, not a target. On a thin day you get a short digest instead of padding."
+          title="Kinds of story to skip"
+          description="Muted kinds never appear, whatever they are about."
+        >
+          <div className="grid gap-2.5 sm:grid-cols-2">
+            {KINDS.map((kind) => (
+              <Pick
+                key={kind.id}
+                tone="muted"
+                selected={mutedKinds.includes(kind.id)}
+                label={kind.label}
+                hint={kind.description}
+                onToggle={() => toggle(mutedKinds, setMutedKinds, kind.id)}
+              />
+            ))}
+          </div>
+        </Section>
+
+        <Section
+          title="Your edition"
+          description="A ceiling and a bar, not a target. On a thin day you get a short edition instead of filler."
         >
           <div className="grid gap-8 sm:grid-cols-2">
-            <Range
-              name="select_count"
-              label="Most items to keep"
-              value={selectCount}
-              onChange={setSelectCount}
-              min={1}
-              max={20}
-              hint="The ceiling. Fewer is normal."
-            />
+            <Range name="select_count" label="At most" value={size} onChange={setSize} min={1} max={20} format={(n) => `${n} stories`} hint="Fewer is normal." />
             <Range
               name="min_score"
-              label="Minimum score"
-              value={minScore}
-              onChange={setMinScore}
+              label="Quality bar"
+              value={bar}
+              onChange={setBar}
               min={0}
               max={10}
               step={0.5}
               format={(n) => n.toFixed(1)}
-              hint="Nothing below this ships. Raise it for a stricter digest."
+              hint="Nothing below this ships. 5 is balanced; 7 is strict."
             />
           </div>
-        </Section>
-
-        <Section
-          title="Where it looks"
-          description="How many candidates each source contributes before ranking. Zero turns a source off entirely."
-        >
-          <div className="grid gap-8 sm:grid-cols-3">
-            <Range name="hn_quota" label="Hacker News" value={hn} onChange={setHn} min={0} max={20} hint="Broadest, no summaries." />
-            <Range name="lobsters_quota" label="Lobsters" value={lobsters} onChange={setLobsters} min={0} max={20} hint="Smaller, more technical." />
-            <Range name="blogs_quota" label="Blogs" value={blogs} onChange={setBlogs} min={0} max={20} hint="The only source with real summaries." />
-          </div>
-          {selectCount > pool && (
-            <p className="text-sm text-destructive">
-              Keeping {selectCount} is impossible when the sources only fetch {pool}.
-            </p>
-          )}
-        </Section>
-
-        <Section
-          title="In your own words"
-          description="Anything the choices above cannot say. Appended last, so it overrides them."
-        >
-          <Textarea
-            name="profile"
-            rows={5}
-            defaultValue={prefs.profile ?? ""}
-            placeholder="e.g. I work in Rust and Go. I care about how databases handle concurrency. Skip anything about JavaScript frameworks."
-            className="resize-y"
+          <Switch
+            name="include_general"
+            checked={includeGeneral}
+            onChange={setIncludeGeneral}
+            label="Include general-interest stories"
+            hint="Science, culture and business stories that reach Hacker News without being about computing."
           />
         </Section>
 
-        {/* Settings are abstract until you see them as a sentence. This is the same shape
-            the model is given, so a bad combination is obvious before a run wastes a day. */}
+        <Section title="Sources" description="Where candidates come from. Switched-off sources never reach your edition.">
+          <div className="grid gap-2.5 sm:grid-cols-3">
+            {SOURCES.map((source) => (
+              <Pick
+                key={source.id}
+                selected={!sourcesOff.includes(source.id)}
+                label={source.label}
+                hint={sourcesOff.includes(source.id) ? "Off" : "On"}
+                onToggle={() => toggle(sourcesOff, setSourcesOff, source.id)}
+              />
+            ))}
+          </div>
+        </Section>
+
+        <Section title="Sites to skip" description="One per line. Subdomains are included: example.com also mutes blog.example.com.">
+          <Textarea
+            name="muted_domains"
+            rows={3}
+            defaultValue={(profile.muted_domains ?? []).join("\n")}
+            placeholder={"medium.com\nexample.substack.com"}
+            className="resize-y font-mono text-sm"
+          />
+        </Section>
+
+        <Section title="Delivery" description="Read on the site, in your inbox, or in any feed reader.">
+          <Switch
+            name="email_digest"
+            checked={email}
+            onChange={setEmail}
+            label="Email me each edition"
+            hint="Sent after the morning run, only on days something cleared your bar."
+          />
+          <div className="rounded-xl p-3.5 ring-1 ring-border">
+            <p className="text-sm font-medium">Private RSS feed</p>
+            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+              Anyone with this URL can read your editions. Make a new one to revoke it.
+            </p>
+            {feedUrl ? (
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <input
+                  readOnly
+                  value={feedUrl}
+                  onFocus={(e) => e.currentTarget.select()}
+                  className="h-8 min-w-0 flex-1 rounded-md bg-muted/40 px-2 font-mono text-xs ring-1 ring-border outline-none"
+                />
+                <Button type="button" variant="outline" size="sm" onClick={copy}>
+                  {copied ? "Copied" : "Copy"}
+                </Button>
+                <Button type="button" variant={confirmRotate ? "destructive" : "ghost"} size="sm" onClick={rotate} disabled={rotating}>
+                  {rotating ? "Making…" : confirmRotate ? "Revoke old URL?" : "New URL"}
+                </Button>
+              </div>
+            ) : (
+              <p className="mt-3 text-xs text-muted-foreground">Available once your account is set up.</p>
+            )}
+            {feedMessage && <p className="mt-2 font-mono text-[11px] text-signal">{feedMessage}</p>}
+          </div>
+        </Section>
+
         <section className="rounded-xl bg-muted/25 p-5 ring-1 ring-foreground/[0.06]">
-          <p className="mb-3 font-mono text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-            What the model is told
-          </p>
+          <p className="mb-3 font-mono text-[11px] uppercase tracking-[0.14em] text-muted-foreground">In one sentence</p>
           <p className="text-pretty text-[15px] leading-[1.75]">
-            You read as a{" "}
-            <span className="text-signal">{levelLabel.toLowerCase()}</span>.{" "}
-            {wanted.length > 0
-              ? `You want ${joinWords(wanted)}. `
-              : "You have not named any topics yet, so nothing is favoured. "}
-            {skipped.length > 0 && `You would rather skip ${joinWords(skipped)}. `}
-            Each morning {pool} candidates are read and at most{" "}
-            <span className="tabular-nums">{selectCount}</span> are kept, none scoring
-            below <span className="tabular-nums">{minScore.toFixed(1)}</span>.
+            You read as a <span className="text-signal">{levelLabel}</span>.{" "}
+            {followed.length > 0
+              ? `You follow ${joinWords(followed.map((t) => t.label.toLowerCase()))}. `
+              : "You follow no topics yet, so quality alone decides until your reading teaches it more. "}
+            {muted.length > 0 && `You never see ${joinWords(muted.map((t) => t.label.toLowerCase()))}. `}
+            Each morning you get at most <span className="tabular-nums">{size}</span> stories, none below{" "}
+            <span className="tabular-nums">{bar.toFixed(1)}</span>.{" "}
+            <Link href="/lab" className="underline underline-offset-4 hover:text-signal">
+              See how that played out today
+            </Link>
+            .
           </p>
         </section>
       </div>
@@ -303,7 +419,6 @@ export function SettingsForm({ prefs }: { prefs: Profile }) {
         <input key={`${name}-${value}-${i}`} type="hidden" name={name} value={value} />
       ))}
 
-      {/* Sticky so Save is reachable without scrolling back down a long page. */}
       <div className="sticky bottom-0 -mx-6 mt-12 border-t border-border/60 bg-background/85 px-6 py-4 backdrop-blur-md">
         <div className="flex flex-wrap items-center gap-3">
           <Button type="submit" disabled={pending}>
@@ -318,17 +433,12 @@ export function SettingsForm({ prefs }: { prefs: Profile }) {
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.2 }}
               >
-                <Badge
-                  variant={state.ok ? "secondary" : "destructive"}
-                  className="font-normal"
-                >
+                <Badge variant={state.ok ? "secondary" : "destructive"} className="font-normal">
                   {state.message}
                 </Badge>
               </motion.div>
             ) : (
-              <span className="text-xs text-muted-foreground">
-                Takes effect on the next run.
-              </span>
+              <span className="text-xs text-muted-foreground">Takes effect in your next edition.</span>
             )}
           </AnimatePresence>
         </div>

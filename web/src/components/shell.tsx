@@ -4,31 +4,25 @@ import { usePathname } from "next/navigation";
 import { Nav } from "@/components/nav";
 import type { Identity } from "@/lib/identity";
 
-/** The reader's frame: the nav and one narrow column.
+/** Pages that are tables rather than reading: they get room. */
+const WIDE_PREFIXES = ["/lab", "/status"];
+
+/** The frame: the nav and one column.
  *
- *  The signed-out root is the landing page, which is full-bleed and carries its own nav
- *  (it fades in after the intro), so the frame steps aside for exactly that one case.
- *  It has to be decided here rather than in the layout because a server layout does not
- *  know the pathname, and here rather than in the page because a page cannot remove the
- *  layout it renders inside.
+ *  The signed-out root is the landing page, which is full-bleed and carries its own nav,
+ *  so the frame steps aside for exactly that case. Decided here because a server layout
+ *  does not know the pathname, and a page cannot remove the layout it renders inside.
  */
-export function Shell({
-  showDebug,
-  identity,
-  children,
-}: {
-  showDebug: boolean;
-  identity: Identity | null;
-  children: React.ReactNode;
-}) {
+export function Shell({ identity, children }: { identity: Identity | null; children: React.ReactNode }) {
   const pathname = usePathname();
 
   if (!identity && pathname === "/") return <>{children}</>;
 
+  const width = WIDE_PREFIXES.some((p) => pathname.startsWith(p)) ? "max-w-5xl" : "max-w-3xl";
   return (
     <>
-      <Nav showDebug={showDebug} identity={identity} />
-      <main className="mx-auto max-w-3xl px-6 pb-28 pt-14">{children}</main>
+      <Nav identity={identity} width={width} />
+      <main className={`mx-auto px-6 pb-28 pt-14 ${width}`}>{children}</main>
     </>
   );
 }

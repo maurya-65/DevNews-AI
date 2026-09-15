@@ -1,0 +1,42 @@
+{
+  "_comment": "Single source of truth for the vocabulary the model tags with and the ranker reasons over. Read by agent/taxonomy.py and by the web app. Adding a topic here is the whole change; ids are stored in the database, so never rename one.",
+  "topics": [
+    { "id": "systems", "label": "Systems & infrastructure", "description": "distributed systems, networking, cloud infrastructure, scaling, reliability" },
+    { "id": "databases", "label": "Databases & storage", "description": "database internals, query engines, storage engines, data modelling" },
+    { "id": "languages", "label": "Languages & compilers", "description": "programming language design, type systems, compilers, runtimes, virtual machines" },
+    { "id": "ml", "label": "ML engineering", "description": "building, training, serving and evaluating machine learning systems in practice" },
+    { "id": "ai-research", "label": "AI research", "description": "new models, methods and results from machine learning research" },
+    { "id": "security", "label": "Security", "description": "vulnerabilities, exploits, cryptography, authentication, privacy engineering" },
+    { "id": "performance", "label": "Performance", "description": "profiling, optimisation, benchmarks, low-level efficiency" },
+    { "id": "devtools", "label": "Developer tooling", "description": "editors, build systems, version control, debugging, CI and testing tools" },
+    { "id": "web", "label": "Web platform", "description": "browsers, web standards, frontend architecture, JavaScript runtimes" },
+    { "id": "os", "label": "OS & hardware", "description": "operating systems and their releases, kernels, embedded systems, chips, devices and computer architecture" },
+    { "id": "practice", "label": "Engineering practice", "description": "how teams build software: architecture decisions, process, reliability culture, careers" },
+    { "id": "open-source", "label": "Open source", "description": "maintainers, licensing, package ecosystems, project governance" },
+    { "id": "theory", "label": "Algorithms & theory", "description": "algorithms, data structures, formal methods, complexity, CS theory" },
+    { "id": "industry", "label": "Tech industry", "description": "companies and their consumer products and pricing, funding, acquisitions, lawsuits, policy, regulation" },
+    { "id": "crypto-web3", "label": "Crypto & web3", "description": "blockchains, cryptocurrencies, web3" }
+  ],
+  "kinds": [
+    { "id": "research", "label": "Research", "description": "a paper or an original research result" },
+    { "id": "deep-dive", "label": "Deep dive", "description": "a long-form technical explanation of how something works" },
+    { "id": "postmortem", "label": "Postmortem", "description": "an incident report or retrospective with concrete lessons" },
+    { "id": "tutorial", "label": "Tutorial", "description": "a how-to or introductory guide" },
+    { "id": "opinion", "label": "Opinion", "description": "an essay or argument" },
+    { "id": "release", "label": "Release", "description": "a new version of existing software" },
+    { "id": "launch", "label": "Launch", "description": "a new product, service or company announcement" },
+    { "id": "tool", "label": "Project", "description": "an open-source project or tool being shown off" },
+    { "id": "news", "label": "News", "description": "reporting on an event" },
+    { "id": "listicle", "label": "Roundup", "description": "a list or roundup with little depth" }
+  ],
+  "audiences": [
+    { "id": "newcomer", "label": "Newcomer", "description": "readable without background in the area" },
+    { "id": "practitioner", "label": "Practitioner", "description": "assumes a working engineer's background" },
+    { "id": "expert", "label": "Expert", "description": "assumes deep specialist knowledge" }
+  ],
+  "levels": [
+    { "id": "learning", "label": "Still learning", "hint": "Favour clear explainers; lighter on specialist depth." },
+    { "id": "working", "label": "Working engineer", "hint": "Balanced: new, consequential and substantive." },
+    { "id": "deep", "label": "Deep / research", "hint": "Favour depth and specialist material." }
+  ]
+}

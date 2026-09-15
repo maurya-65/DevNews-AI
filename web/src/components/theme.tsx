@@ -31,14 +31,15 @@ function MoonIcon() {
   );
 }
 
+const subscribeNothing = () => () => {};
+
 export function ThemeToggle() {
   const { resolvedTheme, setTheme } = useTheme();
-  const [mounted, setMounted] = React.useState(false);
+  const mounted = React.useSyncExternalStore(subscribeNothing, () => true, () => false);
 
   // The server has no idea which theme the browser will resolve to, so the icon can only
   // be decided after mount. Rendering a fixed-size placeholder keeps the header from
   // shifting when it appears.
-  React.useEffect(() => setMounted(true), []);
 
   return (
     <Button

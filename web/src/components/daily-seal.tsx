@@ -20,6 +20,7 @@ export function DailySeal({
 }) {
   const reduced = useReducedMotion();
   const total = Math.max(scored, 1);
+  const round = (n: number) => Math.round(n * 100) / 100;
 
   // Ticks run clockwise from twelve o'clock. Kept ones lead, so the inked arc reads as a
   // single wedge rather than being scattered around the dial.
@@ -32,10 +33,11 @@ export function DailySeal({
     return {
       i,
       isKept,
-      x1: 50 + Math.cos(rad) * inner,
-      y1: 50 + Math.sin(rad) * inner,
-      x2: 50 + Math.cos(rad) * outer,
-      y2: 50 + Math.sin(rad) * outer,
+      // Rounded: server and browser print the last float digit differently, which fails hydration.
+      x1: round(50 + Math.cos(rad) * inner),
+      y1: round(50 + Math.sin(rad) * inner),
+      x2: round(50 + Math.cos(rad) * outer),
+      y2: round(50 + Math.sin(rad) * outer),
     };
   });
 

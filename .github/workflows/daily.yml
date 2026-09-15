@@ -1,20 +1,35 @@
-name: daily digest
+name: daily run
 
 on:
   schedule:
-    # 06:30 UTC = 12:00 IST. Free-tier cron fires 15-60 min late; that is normal.
+    # 06:30 UTC = 12:00 IST. GitHub's free cron fires 15-60 minutes late; that is normal.
     - cron: "30 6 * * *"
   workflow_dispatch:
 
-# Two runs overlapping would open two runs rows for the same day.
+# Two overlapping runs would build the same day's editions twice.
 concurrency:
-  group: daily-digest
+  group: daily-run
   cancel-in-progress: false
+
+permissions:
+  contents: read
 
 jobs:
   run:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 25
+    env:
+      LLM_PROVIDER: gemini
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+      # Provided by Actions for free; raises the GitHub search API rate limit.
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # Optional. Email is skipped unless both are set.
+      RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+      EMAIL_FROM: ${{ vars.EMAIL_FROM }}
+      SITE_URL: ${{ vars.SITE_URL }}
 
     steps:
       - uses: actions/checkout@v5
@@ -26,11 +41,9 @@ jobs:
 
       - run: pip install -r requirements.txt
 
-      - name: Fetch, store, select
-        env:
-          LLM_PROVIDER: gemini
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
-        run: python -m agent.main
+      # Fails fast, with a readable message, when a secret or the v2 schema is missing.
+      - name: Check environment and schema
+        run: python -m agent check
+
+      - name: Run
+        run: python -m agent run

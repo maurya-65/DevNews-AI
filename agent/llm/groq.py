@@ -1,20 +1,19 @@
-"""Groq provider. Alternate — LLM_PROVIDER=groq.
+"""Groq, the fallback. Fast, with a tight free-tier token budget per minute.
 
-Groq's free tier is 6K tokens/minute and one full run is close to that, so truncation is
-more likely here than on Gemini. See BUILDFLOW Phase 3 gotchas.
+json_object mode guarantees valid JSON but not this particular shape, so the schema is
+restated in the system prompt and the analysis step validates every field regardless.
 """
 from __future__ import annotations
 
 import json
 import os
+import time
 
 from groq import Groq as GroqClient
 
-from agent.llm.base import Verdict
+from agent.llm.base import Completion, ProviderError
 
-# llama-3.3-70b-versatile was retired; verified available 2026-09-08.
-MODEL = "openai/gpt-oss-120b"
-MAX_OUTPUT_TOKENS = 8000
+MODEL = os.environ.get("GROQ_MODEL", "openai/gpt-oss-120b")
 
 
 class Groq:
@@ -23,43 +22,49 @@ class Groq:
     def __init__(self, model: str = MODEL):
         key = os.environ.get("GROQ_API_KEY", "").strip()
         if not key:
-            raise RuntimeError("GROQ_API_KEY missing — see .env")
+            raise ProviderError("GROQ_API_KEY is not set")
         self.model = model
         self._client = GroqClient(api_key=key)
 
-    def complete(self, system: str, user: str, schema: dict) -> Verdict:
-        # Groq's json_object mode guarantees valid JSON but not *this* shape, so the
-        # schema goes in the prompt as well. Gemini enforces it natively.
-        system_with_schema = (
-            f"{system}\n\n"
-            f"Return JSON matching exactly this schema:\n"
-            f"{json.dumps(schema, indent=2)}"
-        )
+    def complete_json(self, system: str, user: str, schema: dict,
+                      max_output_tokens: int) -> Completion:
+        started = time.monotonic()
+        request = {
+            "model": self.model,
+            "messages": [
+                {"role": "system", "content": f"{system}\n\nReturn only JSON matching this schema:\n"
+                                              f"{json.dumps(schema, separators=(',', ':'))}"},
+                {"role": "user", "content": user},
+            ],
+            "response_format": {"type": "json_object"},
+            "max_completion_tokens": max_output_tokens,
+            "temperature": 0.2,
+        }
+        # Reasoning models spend completion tokens thinking; this task needs little of it.
+        if "gpt-oss" in self.model:
+            request["reasoning_effort"] = "low"
 
-        response = self._client.chat.completions.create(
-            model=self.model,
-            messages=[{"role": "system", "content": system_with_schema},
-                      {"role": "user", "content": user}],
-            response_format={"type": "json_object"},
-            max_tokens=MAX_OUTPUT_TOKENS,
-            temperature=0.2,
-        )
+        try:
+            response = self._client.chat.completions.create(**request)
+        except Exception as exc:
+            raise ProviderError(f"{type(exc).__name__}: {exc}") from exc
 
         choice = response.choices[0]
         text = (choice.message.content or "").strip()
         truncated = choice.finish_reason == "length"
-
         try:
-            parsed = json.loads(text)
+            data = json.loads(text)
         except json.JSONDecodeError as exc:
-            hint = " (output hit max_tokens)" if truncated else ""
-            raise ValueError(f"Groq returned invalid JSON{hint}: {exc}") from exc
+            hint = " (hit max_completion_tokens)" if truncated else ""
+            raise ProviderError(f"invalid JSON{hint}: {exc}") from exc
 
-        return Verdict(
-            items=parsed.get("verdicts", []),
+        return Completion(
+            data=data,
+            provider=self.name,
             model=self.model,
             input_tokens=response.usage.prompt_tokens,
             output_tokens=response.usage.completion_tokens,
+            latency_ms=int((time.monotonic() - started) * 1000),
             truncated=truncated,
             raw=text,
         )

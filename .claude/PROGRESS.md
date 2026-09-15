@@ -61,6 +61,7 @@ Kya decide kiya aur **kyun** — taaki baad mein dobara na sochna pade.
 | 22 | `items` shared, scoring `verdicts` mein | Scores/summary/selection ab per-user hain, toh wo `items` se nikal ke `verdicts(user_id, item_id)` mein gaye. `items` sirf candidate pool hai |
 | 23 | OWNER_EMAIL allowlist hataya | Har user ka apna profile + verdicts hai aur RLS `auth.uid()` pe scope karta hai. Ek user doosre ka data chhoo hi nahi sakta, toh allowlist ke bachane ko kuch bacha hi nahi |
 | 24 | Signed-out `/` pe scroll-driven landing page, Lovable se draft karke haath se port kiya | Pehle anonymous visitor seedha login form pe girta tha. Ab page scroll ke saath product ki kahani dikhata hai (40 padhe → 8 rakhe → headline), aur upar scroll karne pe ulta chalta hai. Design Lovable mein bana (free tier, 2 prompts mein credits khatam); code per-file download karke port kiya kyunki GitHub sync ko saare repos ka access chahiye tha. Port mein Lovable ki galtiyan theek ki: hero ke layers ek doosre ke upar, phone pe sirf 57px ka scrub, Lenis ka alag rAF loop (jitter). CSS `.devnews` mein scoped taaki reader pe asar na pade; bina JS ke `<noscript>` settled page dikhata hai (page-header.tsx wala hi usool) |
+| 25 | v2 rebuild: article ek baar samjho, ranking har reader ke liye code mein (decisions 1, 21, 22 **superseded**) | v1 ka pipeline toota hua tha (0 verdicts kabhi likhe gaye) aur per-user LLM call free tier pe scale nahi karta. Ab: 5 sources (arXiv + GitHub add), article ka text fetch (42/48 ko title se zyada milta hai, v1 mein 5/20), ~4 batched model calls per run chahe kitne bhi readers hon, per-reader ranking `rank.py` mein, saves/votes/hides se taste seekhna, threads, search, lab page, status page, RSS, optional email. Schema additive migration hai — v1 tables chhue nahi. Poori detail `docs/ARCHITECTURE.md` mein |
 
 ---
 
@@ -78,6 +79,18 @@ _koi nahi_
 ---
 
 ## Session log
+
+### 2026-09-15 — v2 rebuild
+Poora codebase dobara likha (decision 25). Migration `20260915000000_v2.sql` production mein
+chala, pehla asli run ok: 67 candidates → 48 analyzed (4 calls, Gemini 503 pe Groq ne
+sambhala) → 8-item edition. 66 Python tests, `tsc`/`eslint`/`next build` clean. Har page
+fixture mode mein Chrome se dekha, desktop aur 400px dono.
+
+**Verification mein mile aur theek kiye:**
+- `DailySeal` ke SVG coordinates server aur browser pe aakhri float digit alag print karte
+  the → hydration mismatch. Ab 2 decimal pe round.
+- arXiv titles mein raw TeX (`$\pi$-calculus`). `sources/arxiv.py` ab inline maths ko
+  padhne layak text banata hai; `$5 and $10` jaisi keemtein nahi chhedta.
 
 ### 2026-09-08 — Phase 4 + 5
 `web/` Next.js 16 app — `/` digest aur `/debug` (sab 20, scores + reason + cut line).

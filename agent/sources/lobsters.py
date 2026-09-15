@@ -1,35 +1,38 @@
-"""Lobsters hottest. Smaller and more technical than HN, with real blurbs on some posts."""
+"""Lobsters hottest. Smaller and more technical than HN, and it tags every story."""
 from __future__ import annotations
 
-import httpx
-
-from agent.normalize import make_item
+from agent import config, net
+from agent.models import Candidate
+from agent.normalize import clean_text, to_utc_iso
 
 API = "https://lobste.rs/hottest.json"
-LIMIT = 5
-TIMEOUT = 20.0
-UA = {"User-Agent": "DevNews-AI/0.1 (+https://github.com/maurya-65/DevNews-AI)"}
 
 
-def fetch(limit: int = LIMIT) -> list[dict]:
-    r = httpx.get(API, headers=UA, timeout=TIMEOUT)
-    r.raise_for_status()
+def fetch(source_id: str, cfg: dict, quota: int) -> list[Candidate]:
+    min_score = int(cfg.get("min_score", 5))
+    response = net.get(API)
 
-    items = []
-    for story in r.json():
-        item = make_item(
-            source="lobsters",
-            external_id=story["short_id"],
-            # Text-only submissions have an empty url; fall back to the discussion.
-            url=story.get("url") or story.get("comments_url"),
-            title=story.get("title"),
-            blurb=story.get("description_plain"),
-            points=story.get("score"),
+    out: list[Candidate] = []
+    for rank, story in enumerate(response.json(), 1):
+        score = story.get("score") or 0
+        title = clean_text(story.get("title"), 300)
+        if score < min_score or not title:
+            continue
+        discussion = story.get("comments_url") or story.get("short_id_url")
+        out.append(Candidate(
+            source=source_id,
+            external_id=str(story["short_id"]),
+            url=story.get("url") or discussion,
+            title=title,
+            discussion_url=discussion,
+            description=clean_text(story.get("description_plain")
+                                   or story.get("description"), config.DESCRIPTION_CHARS),
+            points=score,
             comments=story.get("comment_count"),
-            published_at=story.get("created_at"),
-        )
-        if item:
-            items.append(item)
-        if len(items) >= limit:
+            source_rank=rank,
+            published_at=to_utc_iso(story.get("created_at")),
+            tags=list(story.get("tags") or []),
+        ))
+        if len(out) >= quota:
             break
-    return items
+    return out

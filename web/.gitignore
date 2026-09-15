@@ -39,3 +39,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Pipeline dry-run output for fixture mode (python -m agent run --store memory ...)
+/fixtures/

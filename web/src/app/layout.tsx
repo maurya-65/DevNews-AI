@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import { Bricolage_Grotesque, Instrument_Sans, JetBrains_Mono } from "next/font/google";
 import { Shell } from "@/components/shell";
-import { currentUser } from "@/lib/auth";
-import { initialsFrom, nameFrom, type Identity } from "@/lib/identity";
+import { getViewer } from "@/lib/viewer";
 import { ThemeProvider } from "@/components/theme";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import "./globals.css";
@@ -28,27 +27,14 @@ const mono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "DevNews",
-  description: "A personal CS briefing, chosen daily.",
+  title: { default: "DevNews", template: "%s · DevNews" },
+  description: "The few computer-science stories worth your time today, chosen for you.",
 };
-
-// Debug is a tuning tool, not a reader page: it exposes rejected items, raw scores and
-// token counts. Off unless SHOW_DEBUG is set, and never in the nav otherwise.
-const SHOW_DEBUG = process.env.SHOW_DEBUG === "1";
 
 export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  const user = await currentUser();
-  const name = nameFrom(user?.user_metadata);
-  const identity: Identity | null = user
-    ? {
-        name,
-        email: user.email ?? null,
-        initials: initialsFrom(name, user.email),
-        providers: (user.app_metadata?.providers as string[] | undefined) ?? [],
-      }
-    : null;
+  const viewer = await getViewer();
 
   return (
     <html
@@ -59,7 +45,7 @@ export default async function RootLayout({
       <body className="min-h-svh bg-background font-sans text-foreground antialiased">
         <ThemeProvider>
           <TooltipProvider delay={200}>
-            <Shell showDebug={SHOW_DEBUG} identity={identity}>
+            <Shell identity={viewer?.identity ?? null}>
               {children}
             </Shell>
           </TooltipProvider>
