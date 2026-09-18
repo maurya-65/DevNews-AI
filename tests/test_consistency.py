@@ -7,12 +7,37 @@ from agent.sources import FETCHERS
 
 ROOT = Path(__file__).resolve().parents[1]
 MIGRATION = ROOT / "supabase" / "migrations" / "20260915000000_v2.sql"
+STACK_MIGRATION = ROOT / "supabase" / "migrations" / "20260916000000_stack.sql"
 
 
 def test_ids_are_unique_within_each_group():
-    for group in (taxonomy.topics(), taxonomy.kinds(), taxonomy.audiences()):
+    for group in (taxonomy.topics(), taxonomy.kinds(), taxonomy.audiences(), taxonomy.technologies()):
         ids = [entry["id"] for entry in group]
         assert all(ids) and len(ids) == len(set(ids))
+
+
+def test_every_technology_id_is_its_own_canonical_spelling():
+    # technology_id() has to be idempotent, or the same tool lands under two ids over time.
+    for entry in taxonomy.technologies():
+        assert taxonomy.technology_id(entry["id"]) == entry["id"]
+        assert taxonomy.technology_id(entry["label"]) == entry["id"]
+
+
+def test_no_alias_points_at_two_technologies():
+    seen: dict[str, str] = {}
+    for entry in taxonomy.technologies():
+        for name in [entry["label"].lower(), *(a.lower() for a in entry.get("aliases", []))]:
+            assert name not in seen or seen[name] == entry["id"], f"{name} is claimed twice"
+            seen[name] = entry["id"]
+        assert entry["id"] not in {a.lower() for e in taxonomy.technologies() if e["id"] != entry["id"]
+                                   for a in e.get("aliases", [])}
+
+
+def test_the_stack_migration_adds_what_the_code_reads():
+    sql = STACK_MIGRATION.read_text(encoding="utf-8")
+    for column in ("technologies", "muted_technologies", "interest_text", "interest_profile",
+                   "onboarded_at", "role"):
+        assert column in sql
 
 
 def test_v1_interest_ids_survive():

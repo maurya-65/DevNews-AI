@@ -4,6 +4,7 @@ from agent import config, taste
 
 NOW = datetime(2026, 9, 15, 7, 0, tzinfo=timezone.utc)
 ARTICLES = {1: {"topics": ["databases", "performance"], "kind": "deep-dive",
+                "technologies": ["postgres", "linux"],
                 "domain": "example.com", "sources": ["hn"]}}
 
 
@@ -17,6 +18,7 @@ def test_an_upvote_raises_everything_about_the_article():
     assert weights["kind:deep-dive"] > 0
     assert weights["domain:example.com"] > 0
     assert weights["source:hn"] > 0
+    assert weights["tech:postgres"] > 0 and weights["tech:linux"] > 0
     assert evidence["topic:databases"] == 1
 
 

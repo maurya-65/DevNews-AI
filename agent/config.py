@@ -80,6 +80,7 @@ SUMMARY_CHARS = 320
 TAKEAWAY_CHARS = 160
 THREAD_TITLE_CHARS = 80
 MAX_TOPICS = 3
+MAX_TECHNOLOGIES = 6        # tags per article: enough for "Rust on Linux with Postgres"
 
 # ---------------------------------------------------------------------------------------
 # Quality: how the model's three scores combine, per reading level
@@ -105,6 +106,9 @@ LOW_CONFIDENCE_FACTOR = 0.85
 # Ranking
 # ---------------------------------------------------------------------------------------
 EXPLICIT_INTEREST = 0.6     # a topic the reader ticked, on a -1..1 interest scale
+# A technology the reader listed as their stack. Below a followed topic on purpose: a
+# topic is what they want to read about, a tool is only what they happen to use.
+STACK_INTEREST = 0.5
 INTEREST_BOOST = 0.55       # full interest lifts quality by 55%; full aversion cuts it
 SIGNAL_POINTS = 1.2         # community signal adds up to this many points
 FRESHNESS_HALF_LIFE_H = 30  # an article loses half its freshness bonus in this many hours

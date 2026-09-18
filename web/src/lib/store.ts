@@ -20,6 +20,7 @@ type Reads = Pick<
   | "getThread"
   | "searchArticles"
   | "getFrontPage"
+  | "getStarterFeed"
   | "getStatus"
 >;
 

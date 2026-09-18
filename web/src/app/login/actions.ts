@@ -134,7 +134,9 @@ export async function signUp(
     if (retry) return { ok: false, message: friendly(retry.message) };
   }
 
-  redirect("/settings");
+  // A brand new account has nothing to rank around yet, so it goes to setup rather than
+  // to an empty edition. "/" sends anyone who skipped it back here anyway.
+  redirect("/welcome");
 }
 
 export async function signInWithProvider(formData: FormData) {

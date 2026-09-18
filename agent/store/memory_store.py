@@ -30,6 +30,8 @@ DEMO_PROFILE = {
     "select_count": 8,
     "min_score": 5.0,
     "topics": ["systems", "databases", "security", "languages", "performance"],
+    "technologies": ["postgres", "rust", "linux", "kubernetes"],
+    "muted_technologies": [],
     "muted_topics": ["crypto-web3"],
     "muted_kinds": ["listicle"],
     "muted_domains": [],
@@ -37,6 +39,10 @@ DEMO_PROFILE = {
     "include_general": False,
     "email_digest": False,
     "taste_updated_at": None,
+    "role": "backend",
+    "interest_text": None,
+    "interest_profile": {},
+    "onboarded_at": "2026-09-15T00:00:00+00:00",
 }
 
 
@@ -228,6 +234,7 @@ class MemoryStore:
             if article and analysis:
                 out[article_id] = {
                     "topics": analysis[0]["topics"], "kind": analysis[0]["kind"],
+                    "technologies": analysis[0].get("technologies") or [],
                     "domain": article[0]["domain"],
                     "sources": sorted({m["source_id"] for m in self._find("mentions", article_id=article_id)}),
                 }

@@ -58,6 +58,18 @@ write only what the title supports.
 lesson, the implication, the number. Null when there honestly is none; do not restate the
 summary.
 
+**technologies** — up to six specific languages, tools, databases, platforms or libraries
+the article is about or built on, most central first. Readers describe their own stack in
+the same terms, so this is what connects a piece to the person who works with it daily.
+
+Prefer these ids, which readers already use:
+{{TECHNOLOGIES}}
+
+If the article is genuinely about something not on that list, write its plain lowercase
+name instead ("sqlc", "nats"). Tag only what the article actually concerns: a Postgres
+benchmark written in Go is `postgres` first, and mentioning a tool in passing is not
+enough. An essay about hiring or a paper with no implementation gets an empty list.
+
 ## Linking to developing stories
 
 The context list contains stories already being followed. Each line starts with a

@@ -2,7 +2,8 @@
 
 Explicit settings are a starting point people fill in once and forget. What someone opens,
 saves, upvotes and hides is the honest signal. Each event nudges the weights for the
-article's topics, kind, site and sources, with diminishing returns as a weight nears ±1,
+article's topics, technologies, kind, site and sources, with diminishing returns as a
+weight nears ±1,
 and weights nobody reinforces drift back toward neutral over time.
 
 Pure functions only.
@@ -14,16 +15,20 @@ from datetime import datetime
 from agent import config
 
 TOPIC_SHARES = (0.6, 0.25, 0.15)
+TECH_SHARE = 0.3            # per technology, for the first few tags
+MAX_TECH_KEYS = 3
 
 
 def signal_keys(article: dict) -> list[tuple[str, float]]:
     """(taste key, share of the event's weight) for one article.
 
-    `article` needs topics, kind, domain and sources.
+    `article` needs topics, technologies, kind, domain and sources.
     """
     keys: list[tuple[str, float]] = []
     for topic, share in zip(article.get("topics") or [], TOPIC_SHARES):
         keys.append((f"topic:{topic}", share))
+    for tech in (article.get("technologies") or [])[:MAX_TECH_KEYS]:
+        keys.append((f"tech:{tech}", TECH_SHARE))
     if article.get("kind"):
         keys.append((f"kind:{article['kind']}", 0.5))
     if article.get("domain"):

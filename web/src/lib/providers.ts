@@ -8,6 +8,9 @@
 export const ALL_PROVIDERS = {
   google: { id: "google", label: "Google" },
   github: { id: "github", label: "GitHub" },
+  // Free to enable, but Meta wants a privacy policy and a data-deletion URL first; the
+  // site serves both at /privacy and /data-deletion.
+  facebook: { id: "facebook", label: "Facebook" },
   azure: { id: "azure", label: "Microsoft" },
 } as const;
 

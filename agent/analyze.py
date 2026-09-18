@@ -31,7 +31,9 @@ def system_prompt() -> str:
     return (PROMPT_PATH.read_text(encoding="utf-8")
             .replace("{{KINDS}}", lines(taxonomy.kinds()))
             .replace("{{TOPICS}}", lines(taxonomy.topics()))
-            .replace("{{AUDIENCES}}", lines(taxonomy.audiences())))
+            .replace("{{AUDIENCES}}", lines(taxonomy.audiences()))
+            # Ids only, comma separated: the list is long and each name explains itself.
+            .replace("{{TECHNOLOGIES}}", ", ".join(sorted(taxonomy.technology_ids()))))
 
 
 def schema() -> dict:
@@ -56,6 +58,9 @@ def schema() -> dict:
                         "confidence": {"type": "number"},
                         "summary": {"type": "string"},
                         "takeaway": {"type": "string", "nullable": True},
+                        # Deliberately not an enum: a name outside the list is useful
+                        # evidence, and taxonomy.technology_id decides what to keep.
+                        "technologies": {"type": "array", "items": {"type": "string"}},
                         "thread_match": {"type": "string", "nullable": True},
                         "thread_hint": {"type": "string", "nullable": True},
                         "thread_relation": {"type": "string", "nullable": True,
@@ -133,6 +138,12 @@ def validate(raw: dict, valid_refs: set[str], provider: str = "", model: str = "
             topics.append(topic)
     audience = raw.get("audience") if raw.get("audience") in taxonomy.audience_ids() else "practitioner"
 
+    technologies: list[str] = []
+    for name in raw.get("technologies") or []:
+        tech = taxonomy.technology_id(name)
+        if tech and tech not in technologies:
+            technologies.append(tech)
+
     try:
         confidence = round(max(0.0, min(1.0, float(raw.get("confidence", 0.5)))), 2)
     except (TypeError, ValueError):
@@ -161,6 +172,7 @@ def validate(raw: dict, valid_refs: set[str], provider: str = "", model: str = "
         confidence=confidence,
         summary=summary,
         takeaway=clean_text(raw.get("takeaway"), config.TAKEAWAY_CHARS),
+        technologies=technologies[:config.MAX_TECHNOLOGIES],
         thread_match=match,
         thread_hint=hint if not match else None,
         thread_relation=relation,

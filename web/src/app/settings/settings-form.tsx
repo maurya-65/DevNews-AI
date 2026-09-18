@@ -7,8 +7,9 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { KINDS, LEVELS, SOURCES, TOPICS } from "@/lib/taxonomy";
-import type { Profile } from "@/lib/types";
+import { KINDS, LEVELS, SOURCES, TECHNOLOGIES, TOPICS, label, technologyId } from "@/lib/taxonomy";
+import type { InterestProfile, Profile } from "@/lib/types";
+import { readInterests } from "@/app/welcome/save";
 import { regenerateFeedToken, savePreferences, type SaveResult } from "./save";
 
 /** Preferences are a starting point, not the whole story: every save, vote and hide also
@@ -218,6 +219,12 @@ export function SettingsForm({ profile, feedBase }: { profile: Profile; feedBase
   );
   const [mutedKinds, setMutedKinds] = useState<string[]>(profile.muted_kinds ?? []);
   const [sourcesOff, setSourcesOff] = useState<string[]>(profile.sources_off ?? []);
+  const [technologies, setTechnologies] = useState<string[]>(profile.technologies ?? []);
+  const [search, setSearch] = useState("");
+  const [interestText, setInterestText] = useState(profile.interest_text ?? "");
+  const [interpreted, setInterpreted] = useState<InterestProfile | null>(profile.interest_profile ?? null);
+  const [readMessage, setReadMessage] = useState<string | null>(null);
+  const [reading, startReading] = useTransition();
   const [size, setSize] = useState(profile.select_count ?? 8);
   const [bar, setBar] = useState(Number(profile.min_score ?? 5));
   const [includeGeneral, setIncludeGeneral] = useState(Boolean(profile.include_general));
@@ -243,7 +250,44 @@ export function SettingsForm({ profile, feedBase }: { profile: Profile; feedBase
     ...muted.map((t) => ["muted_topics", t.id]),
     ...mutedKinds.map((k) => ["muted_kinds", k]),
     ...sourcesOff.map((s) => ["sources_off", s]),
+    ...technologies.map((t) => ["technologies", t]),
   ] as const;
+
+  const suggestions = search.trim()
+    ? TECHNOLOGIES.filter((t) => {
+        const q = search.trim().toLowerCase();
+        return (
+          !technologies.includes(t.id) &&
+          (t.label.toLowerCase().includes(q) || t.id.includes(q) || (t.aliases ?? []).some((a) => a.includes(q)))
+        );
+      }).slice(0, 8)
+    : [];
+
+  function addTechnology(raw: string) {
+    const id = technologyId(raw);
+    if (id && !technologies.includes(id)) setTechnologies([...technologies, id]);
+    setSearch("");
+  }
+
+  /** The one model call the site makes, on demand rather than on every save. What it
+   *  returns is folded into the chips above, which the reader can still undo. */
+  function reread() {
+    const data = new FormData();
+    data.set("interest_text", interestText);
+    startReading(async () => {
+      const result = await readInterests(null, data);
+      if (!result.ok) return setReadMessage(result.message);
+      setReadMessage(null);
+      setInterpreted(result.profile);
+      setTechnologies((current) => [...new Set([...current, ...(result.profile.technologies ?? [])])]);
+      setTopics((current) => {
+        const next = { ...current };
+        for (const id of result.profile.topics ?? []) if (next[id] === "neutral") next[id] = "follow";
+        return next;
+      });
+      if (result.profile.level) setLevel(result.profile.level);
+    });
+  }
 
   function rotate() {
     if (!confirmRotate) return setConfirmRotate(true);
@@ -290,6 +334,86 @@ export function SettingsForm({ profile, feedBase }: { profile: Profile; feedBase
                 onCycle={() => setTopics((current) => ({ ...current, [topic.id]: NEXT_STATE[current[topic.id]] }))}
               />
             ))}
+          </div>
+        </Section>
+
+        <Section
+          title="Your stack"
+          description="Articles carry the same names, so a Postgres deep-dive reaches the people who run Postgres. Type anything — a tool that isn't in the list is still remembered."
+        >
+          <div className="rounded-xl p-3.5 ring-1 ring-border">
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  addTechnology(suggestions[0]?.id ?? search);
+                }
+              }}
+              placeholder="postgres, rust, kubernetes…"
+              aria-label="Add a technology"
+              className="h-8 w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground/60"
+            />
+            {suggestions.length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-2 border-t border-border/60 pt-3">
+                {suggestions.map((t) => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => addTechnology(t.id)}
+                    className="inline-flex h-8 items-center rounded-full px-3 text-sm ring-1 ring-border transition-colors hover:bg-muted/40"
+                  >
+                    + {t.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {technologies.length === 0 && (
+              <p className="text-sm text-muted-foreground">Nothing yet — quality and topics alone decide.</p>
+            )}
+            {technologies.map((id) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setTechnologies(technologies.filter((t) => t !== id))}
+                aria-label={`Remove ${label(id)}`}
+                className="inline-flex h-9 items-center gap-2 rounded-full bg-foreground px-3.5 text-sm text-background"
+              >
+                {label(id)} <span className="opacity-60">×</span>
+              </button>
+            ))}
+          </div>
+        </Section>
+
+        <Section
+          title="In your own words"
+          description="What you work on and what you want to read, at most 150 words. Saving keeps the text; 'Read it again' asks the model to turn it into topics and technologies, which you can then correct."
+        >
+          <Textarea
+            name="interest_text"
+            rows={4}
+            value={interestText}
+            onChange={(e) => setInterestText(e.target.value)}
+            placeholder="I build payment infrastructure in Go and Postgres. I care about correctness under load, database internals and postmortems from teams running at scale."
+            className="resize-y text-sm leading-relaxed"
+          />
+          <div className="flex flex-wrap items-center gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={reread}
+              disabled={reading || !interestText.trim()}
+            >
+              {reading ? "Reading…" : "Read it again"}
+            </Button>
+            {interpreted?.summary && !readMessage && (
+              <span className="text-xs text-muted-foreground">{interpreted.summary}</span>
+            )}
+            {readMessage && <span className="text-xs text-muted-foreground">{readMessage}</span>}
           </div>
         </Section>
 

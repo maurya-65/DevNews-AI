@@ -43,15 +43,28 @@ in `llm_calls`. A typical run is 4 calls and ~20K tokens.
 
 ```
 quality   = Σ weight(level) × {novelty, depth, impact} × audience fit, discounted if low confidence
-interest  = followed topics (+0.6) and learned taste per topic, kind, site and source, in −1..1
+interest  = followed topics (+0.6), the reader's stack (+0.5), and learned taste per topic,
+            technology, kind, site and source, in −1..1
 score     = quality × (1 + 0.55 × interest) + 1.2 × community signal + freshness
 ```
 
 An article is excluded outright if it is off-topic for computing (unless the reader opts
-in), or matches a muted topic, kind, site or switched-off source. Selection then walks the
+in), or matches a muted topic, technology, kind, site or switched-off source. Selection then walks the
 ranking and keeps articles that clear the reader's quality bar, with at most three on one
 primary topic and one per site, up to the edition size. Every item stores `components`
 and a `why` sentence.
+
+### Stack
+
+Topics say what a reader wants to read about; technologies say what they work with, and
+they are what makes an edition feel addressed to one engineer. The model tags each article
+with up to six from the list in `taxonomy.json`, and may return a name that is not on it —
+`taxonomy.technology_id` folds known spellings together (`k8s` → `kubernetes`) and keeps an
+unknown one as a slug, so a tool that keeps appearing can be promoted into the list under
+the id it already has. The reader's own stack is matched against those tags: the best match
+decides rather than the sum, because an article about Postgres *and* Rust is not twice as
+relevant to someone who writes both. Articles analysed before this existed carry an empty
+list, which ranking reads as no signal either way rather than as a mismatch.
 
 ### Continuity
 
@@ -67,8 +80,8 @@ down or hid anything in is never pulled back. No model call, no extra column: it
 ### Taste
 
 Events: up +1.0, save +0.8, open +0.25, unsave −0.3, hide −0.7, down −1.0. Each nudges the
-weights for the article's topics (primary topic most), kind, site and sources, with
-diminishing returns near ±1. Weights decay 1.5% a day toward neutral when nothing
+weights for the article's topics (primary topic most), technologies, kind, site and
+sources, with diminishing returns near ±1. Weights decay 1.5% a day toward neutral when nothing
 reinforces them.
 
 ## Data (`supabase/migrations/`)
@@ -82,13 +95,35 @@ is written by the pipeline with the service key. `llm_calls` has no policies at 
 The v1 tables (`runs`, `items`, `verdicts`, `preferences`) are left untouched by the v2
 migration; its last section lists how to drop them.
 
+`20260916000000_stack.sql` adds `analyses.technologies`, the reader's own
+`profiles.technologies` and `muted_technologies`, and what onboarding collects: `role`,
+`interest_text` (their words, verbatim), `interest_profile` (what the model made of them)
+and `onboarded_at`. Everything personal hangs off `auth.users` with `on delete cascade`, so
+deleting the account removes all of it.
+
+## Setting up an account
+
+Signup goes to `/welcome`: role, reading depth, stack, topics, then a box of at most 150
+words in the reader's own words. That box is the **one model call the site makes** —
+`web/src/lib/interpret.ts`, Gemini with Groq behind it, validated against the same
+`taxonomy.json` the pipeline uses. It runs when the text is saved, never on a daily run, so
+readers cost calls once rather than once a day, and what it returns arrives as editable
+chips rather than as settings applied behind the reader's back. If both providers fail,
+setup carries on and the reader picks by hand.
+
+Until the first morning run there is no edition, so `/` shows a starter feed instead
+(`db.starterOrder`): recent analysed articles with their mutes applied, matches first,
+labelled as not being their edition yet. No model call, no ranking claim.
+
 ## Site (`web/`)
 
 Next.js 16, App Router, server components reading through the visitor's Supabase session.
 
 | Route | Access | |
 |---|---|---|
-| `/` | public / reader | Landing page for visitors; today's edition for readers |
+| `/` | public / reader | Landing page for visitors; today's edition, or the starter feed on day one |
+| `/welcome` | reader | Setup, once. Everything else sends a reader without `onboarded_at` here |
+| `/privacy`, `/data-deletion` | public | What is stored and how to be rid of it; also what Meta requires for Facebook sign-in |
 | `/edition/[date]`, `/archive` | reader | Past editions |
 | `/threads`, `/threads/[slug]` | public | Developing stories |
 | `/article/[id]` | public | Everything known about one article |

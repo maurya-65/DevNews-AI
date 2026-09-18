@@ -1,4 +1,4 @@
-from agent import analyze, taxonomy
+from agent import analyze, config, taxonomy
 from agent.models import Draft, Mention
 
 
@@ -8,6 +8,7 @@ def raw(**overrides):
         "audience": "practitioner", "novelty": 7, "depth": 8.44, "impact": 6, "confidence": 0.8,
         "summary": "Postgres 18 adds asynchronous I/O; sequential scans run 2-3x faster on network storage.",
         "takeaway": "Worth upgrading read-heavy workloads.",
+        "technologies": ["PostgreSQL", "Linux"],
         "thread_match": None, "thread_hint": None, "thread_relation": None,
     }
     entry.update(overrides)
@@ -33,6 +34,21 @@ def test_unknown_vocabulary_falls_back_or_is_dropped():
     assert a.kind == "news"
     assert a.topics == ["databases", "web", "security"]
     assert a.audience == "practitioner"
+
+
+def test_technologies_fold_onto_known_ids():
+    a = analyze.validate(raw(technologies=["k8s", "Kubernetes", "PG", "  Rust  "]), set())
+    assert a.technologies == ["kubernetes", "postgres", "rust"]
+
+
+def test_an_unlisted_tool_survives_as_a_slug_but_a_sentence_does_not():
+    a = analyze.validate(raw(technologies=["sqlc", "NATS", "a distributed message queue", 7]), set())
+    assert a.technologies == ["sqlc", "nats"]
+
+
+def test_technologies_are_capped():
+    many = [f"tool{n}" for n in range(20)]
+    assert len(analyze.validate(raw(technologies=many), set()).technologies) == config.MAX_TECHNOLOGIES
 
 
 def test_entries_without_an_id_or_a_summary_are_rejected():

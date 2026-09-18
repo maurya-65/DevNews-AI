@@ -6,7 +6,10 @@ import { fixtureMode } from "@/lib/fixture-mode";
  *  articles, search, pipeline status) is public by design; editions, saved articles, the
  *  lab and preferences are personal and stay behind sign-in. /r and /feed handle their own
  *  authorisation: /r records an open only for a signed-in reader, /feed checks its token. */
-const PUBLIC_PATHS = ["/login", "/auth", "/threads", "/article", "/search", "/status", "/r", "/feed"];
+// /privacy and /data-deletion are public because they have to be: a signed-out visitor,
+// and Meta's app review, both need to read them without an account.
+const PUBLIC_PATHS = ["/login", "/auth", "/threads", "/article", "/search", "/status", "/r",
+                      "/feed", "/privacy", "/data-deletion"];
 
 function isPublic(pathname: string) {
   // The root alone, not as a prefix — "/" as a prefix would make every path public.
