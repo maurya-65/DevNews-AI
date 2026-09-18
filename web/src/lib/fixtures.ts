@@ -3,7 +3,7 @@ import "server-only";
 import fs from "node:fs";
 import path from "node:path";
 
-import { rankForEveryone, toCard } from "@/lib/db";
+import { rankForEveryone, starterOrder, toCard } from "@/lib/db";
 import { FIXTURE_USER_ID } from "@/lib/fixture-mode";
 import { sinceDate, tallyReading } from "@/lib/reading-stats";
 import type {
@@ -79,7 +79,23 @@ function allCards() {
 
 export async function getProfile(userId: string): Promise<Profile | null> {
   const row = state().profiles.find((p) => p.id === userId);
-  return row ? ({ feed_token: "fixture-feed-token", ...row } as Profile) : null;
+  if (!row) return null;
+  // A dry-run file written before onboarding existed has no onboarded_at, and the stand-in
+  // reader is not going to fill a form in. Treat them as already set up so fixture mode
+  // still lands on the reading screens.
+  // The file is plain JSON, so the row is untyped by construction; the defaults fill what
+  // an older dry-run file has no column for.
+  return {
+    feed_token: "fixture-feed-token",
+    onboarded_at: "2026-09-15T00:00:00Z",
+    role: "backend",
+    technologies: [],
+    muted_technologies: [],
+    interest_text: null,
+    interest_profile: null,
+    interest_read_at: null,
+    ...row,
+  } as unknown as Profile;
 }
 
 export async function getTaste(userId: string): Promise<TasteWeight[]> {
@@ -197,6 +213,10 @@ export async function searchArticles(q: string): Promise<SearchHit[]> {
 
 export async function getFrontPage(limit = 6): Promise<ArticleCard[]> {
   return rankForEveryone(allCards().filter((c) => c.is_cs)).slice(0, limit);
+}
+
+export async function getStarterFeed(profile: Profile, limit = 8): Promise<ArticleCard[]> {
+  return starterOrder(allCards(), profile, limit);
 }
 
 export async function getStatus(): Promise<StatusData> {

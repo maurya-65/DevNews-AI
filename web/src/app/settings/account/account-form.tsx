@@ -1,12 +1,15 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
+import Link from "next/link";
 import { AnimatePresence, motion } from "motion/react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { updatePassword, type AuthResult } from "@/app/login/actions";
+import { DELETE_CONFIRM_PHRASE } from "@/lib/account";
+import { deleteAccount, type DeleteResult } from "./delete";
 import { ALL_PROVIDERS, type ProviderId } from "@/lib/providers";
 import type { Identity } from "@/lib/identity";
 
@@ -60,6 +63,11 @@ export function AccountForm({
     updatePassword,
     null,
   );
+  const [removal, removeAction, removing] = useActionState<DeleteResult | null, FormData>(
+    deleteAccount,
+    null,
+  );
+  const [armed, setArmed] = useState(false);
 
   const hasPassword = identity.providers.includes("email");
   const signInMethods = identity.providers.length ? identity.providers : ["email"];
@@ -169,6 +177,47 @@ export function AccountForm({
             </AnimatePresence>
           </div>
         </form>
+      </Section>
+
+      <Section
+        title="Delete this account"
+        description="Your profile, everything DevNews learned about your taste, every edition built for you, and every save, vote and open go with it. The articles themselves stay — they belong to no reader. Nothing here can be undone or recovered."
+      >
+        {!armed ? (
+          <div className="flex flex-wrap items-center gap-4">
+            <Button type="button" variant="outline" onClick={() => setArmed(true)}>
+              Delete my account
+            </Button>
+            <Link
+              href="/data-deletion"
+              className="font-mono text-[11px] text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+            >
+              What exactly gets removed
+            </Link>
+          </div>
+        ) : (
+          <form action={removeAction} className="max-w-sm space-y-4 rounded-xl p-4 ring-1 ring-destructive/40">
+            <div className="space-y-1.5">
+              <Label htmlFor="confirm-delete" className="text-sm">
+                Type <span className="font-mono text-destructive">{DELETE_CONFIRM_PHRASE}</span> to confirm
+              </Label>
+              <Input id="confirm-delete" name="confirm" autoComplete="off" required />
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <Button type="submit" variant="destructive" disabled={removing}>
+                {removing ? "Deleting…" : "Delete permanently"}
+              </Button>
+              <Button type="button" variant="ghost" onClick={() => setArmed(false)}>
+                Keep it
+              </Button>
+            </div>
+            {removal && !removal.ok && (
+              <p role="status" className="text-sm text-destructive">
+                {removal.message}
+              </p>
+            )}
+          </form>
+        )}
       </Section>
     </div>
   );

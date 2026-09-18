@@ -68,6 +68,7 @@ class Analysis:
     confidence: float
     summary: str
     takeaway: str | None
+    technologies: list[str] = field(default_factory=list)   # what it is built on or about
     thread_hint: str | None = None
     thread_match: str | None = None   # "t:<thread id>" or "a:<article id>" from the context list
     thread_relation: str | None = None
@@ -91,6 +92,8 @@ class Reader:
     sources_off: list[str]
     include_general: bool
     email_digest: bool
+    technologies: list[str] = field(default_factory=list)        # the reader's stack
+    muted_technologies: list[str] = field(default_factory=list)
     taste: dict[str, float] = field(default_factory=dict)
     taste_updated_at: str | None = None
 

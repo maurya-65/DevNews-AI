@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { ArticleList } from "@/components/article-list";
 import { EditionScreen } from "@/components/edition-screen";
 import { Empty } from "@/components/empty";
 import { Landing } from "@/components/landing/landing";
@@ -15,18 +17,43 @@ export default async function Home() {
   const viewer = await getViewer();
   if (!viewer) return <Landing />;
 
-  const edition = await store().getLatestEdition(viewer.user.id);
+  const data = store();
+  const profile = await data.getProfile(viewer.user.id);
+  // Nothing to rank around yet. Setup is short, and it is the only thing standing between
+  // a new account and a page worth reading.
+  if (profile && !profile.onboarded_at) redirect("/welcome");
+
+  const edition = await data.getLatestEdition(viewer.user.id);
   if (!edition) {
+    // Day one: the morning run has not happened yet, so this is the best honest answer —
+    // real articles, their mutes respected, what matches them first, and a line saying
+    // plainly that it is not their edition yet.
+    const starter = profile ? await data.getStarterFeed(profile, 8) : [];
+    const readerState = await data.getReaderState(
+      viewer.user.id,
+      starter.map((a) => a.id),
+    );
+
     return (
       <>
-        <PageHeader eyebrow="Today" title="Your first edition is on its way" />
-        <Empty
-          title="No edition yet"
-          hint="The morning run builds one around 06:30 UTC. Tell DevNews what you follow in the meantime and it will be ranked around that."
+        <PageHeader
+          eyebrow="Starting out"
+          title="Worth reading while you wait"
+          meta="Your first ranked edition arrives tomorrow morning"
         />
-        <p className="mt-8 text-center">
-          <Link href="/settings" className="text-sm font-medium underline underline-offset-4 hover:text-signal">
-            Set your preferences →
+        {starter.length === 0 ? (
+          <Empty
+            title="Nothing analysed yet"
+            hint="The morning run reads the day's links around 06:30 UTC. Your first edition lands straight after."
+          />
+        ) : (
+          <ArticleList entries={starter.map((article) => ({ article }))} initialState={readerState} signedIn />
+        )}
+        <p className="mt-12 font-mono text-[11px] leading-relaxed text-muted-foreground">
+          These are today&apos;s strongest stories filtered to what you told us, not ranked for you.
+          Saving or voting on any of them teaches tomorrow&apos;s edition.{" "}
+          <Link href="/settings" className="text-foreground underline-offset-4 hover:underline">
+            Adjust your preferences
           </Link>
         </p>
       </>

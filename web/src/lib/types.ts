@@ -21,6 +21,7 @@ export type ArticleCard = {
   takeaway: string | null;
   kind: string;
   topics: string[];
+  technologies: string[];
   audience: string;
   novelty: number;
   depth: number;
@@ -97,6 +98,8 @@ export type Profile = {
   select_count: number;
   min_score: number;
   topics: string[];
+  technologies: string[];
+  muted_technologies: string[];
   muted_topics: string[];
   muted_kinds: string[];
   muted_domains: string[];
@@ -105,6 +108,27 @@ export type Profile = {
   email_digest: boolean;
   feed_token: string | null;
   taste_updated_at: string | null;
+  /** What they said they do, from the roles onboarding offers. */
+  role: string | null;
+  /** Their own description of what they work on, kept verbatim so it can be edited. */
+  interest_text: string | null;
+  /** What the model made of that text, and which of it the reader kept. */
+  interest_profile: InterestProfile | null;
+  interest_read_at: string | null;
+  /** Null until onboarding is finished. */
+  onboarded_at: string | null;
+};
+
+/** The model's reading of a reader's own words, after validation against the taxonomy.
+ *  Stored so the interpretation can be shown back without asking a model again. */
+export type InterestProfile = {
+  topics?: string[];
+  technologies?: string[];
+  muted_topics?: string[];
+  muted_kinds?: string[];
+  level?: "learning" | "working" | "deep";
+  /** One sentence, in the model's words, of what it understood. */
+  summary?: string;
 };
 
 export type TasteWeight = { key: string; weight: number; evidence: number };

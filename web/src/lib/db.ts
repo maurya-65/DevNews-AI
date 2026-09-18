@@ -24,7 +24,7 @@ import type {
  */
 
 const CARD_COLUMNS =
-  "id,url,domain,title,description,word_count,published_at,first_seen_at,summary,takeaway,kind,topics,audience,novelty,depth,impact,confidence,is_cs,thread_id,thread_relation,thread_slug,thread_title,mentions";
+  "id,url,domain,title,description,word_count,published_at,first_seen_at,summary,takeaway,kind,topics,technologies,audience,novelty,depth,impact,confidence,is_cs,thread_id,thread_relation,thread_slug,thread_title,mentions";
 
 type Row = Record<string, unknown>;
 
@@ -46,6 +46,9 @@ export function toCard(row: Row): ArticleCard {
     takeaway: (row.takeaway as string | null) ?? null,
     kind: String(row.kind),
     topics: (row.topics as string[] | null) ?? [],
+    // Empty for anything analysed before the stack migration, which ranking reads as no
+    // signal either way rather than as a mismatch.
+    technologies: (row.technologies as string[] | null) ?? [],
     audience: String(row.audience),
     novelty: Number(row.novelty),
     depth: Number(row.depth),
@@ -273,6 +276,49 @@ export async function getFrontPage(limit = 6): Promise<ArticleCard[]> {
     .limit(200);
   if (error) fail("front page", error.message);
   return rankForEveryone((data ?? []).map(toCard)).slice(0, limit);
+}
+
+/** Day one, before any edition exists.
+ *
+ *  A new reader finishes setup and the morning run is hours away. Rather than an empty
+ *  screen or an apology, this is real analysed work from the last few days: the mutes they
+ *  just set are honoured, what matches their topics or stack comes first, and the rest
+ *  follows so the page is never bare. It is deliberately not a ranked edition — no taste,
+ *  no continuity, no quality bar — and the screen says so.
+ */
+export function starterOrder(cards: ArticleCard[], profile: Profile, limit = 8) {
+  const followed = new Set(profile.topics);
+  const stack = new Set(profile.technologies);
+  const mutedTopics = new Set(profile.muted_topics);
+  const mutedKinds = new Set(profile.muted_kinds);
+  const mutedTech = new Set(profile.muted_technologies);
+
+  const allowed = cards.filter(
+    (c) =>
+      (c.is_cs || profile.include_general) &&
+      !c.topics.some((t) => mutedTopics.has(t)) &&
+      !mutedKinds.has(c.kind) &&
+      !c.technologies.some((t) => mutedTech.has(t)) &&
+      !profile.muted_domains.some((d) => c.domain === d || c.domain.endsWith(`.${d}`)),
+  );
+
+  const matches = (c: ArticleCard) =>
+    c.topics.some((t) => followed.has(t)) || c.technologies.some((t) => stack.has(t));
+
+  const ordered = rankForEveryone(allowed);
+  return [...ordered.filter(matches), ...ordered.filter((c) => !matches(c))].slice(0, limit);
+}
+
+export async function getStarterFeed(profile: Profile, limit = 8): Promise<ArticleCard[]> {
+  const since = new Date(Date.now() - 72 * 3_600_000).toISOString();
+  const supabase = await authClient();
+  const { data, error } = await supabase
+    .from("article_cards")
+    .select(CARD_COLUMNS)
+    .gte("first_seen_at", since)
+    .limit(200);
+  if (error) fail("starter feed", error.message);
+  return starterOrder((data ?? []).map(toCard), profile, limit);
 }
 
 /** Quality with no personal interest applied: what the pipeline would pick for nobody in particular. */

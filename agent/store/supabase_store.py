@@ -217,7 +217,8 @@ class SupabaseStore:
             articles = {int(r["id"]): r for r in
                         self._t("articles").select("id,domain").in_("id", chunk).execute().data}
             analyses = {int(r["article_id"]): r for r in
-                        self._t("analyses").select("article_id,topics,kind").in_("article_id", chunk).execute().data}
+                        self._t("analyses").select("article_id,topics,kind,technologies")
+                        .in_("article_id", chunk).execute().data}
             sources: dict[int, set[str]] = defaultdict(set)
             for r in self._t("mentions").select("article_id,source_id").in_("article_id", chunk).execute().data:
                 sources[int(r["article_id"])].add(r["source_id"])
@@ -225,6 +226,7 @@ class SupabaseStore:
                 if article_id in articles and article_id in analyses:
                     out[article_id] = {"topics": analyses[article_id]["topics"],
                                        "kind": analyses[article_id]["kind"],
+                                       "technologies": analyses[article_id].get("technologies") or [],
                                        "domain": articles[article_id]["domain"],
                                        "sources": sorted(sources[article_id])}
         return out

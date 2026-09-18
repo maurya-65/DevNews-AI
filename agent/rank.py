@@ -63,13 +63,29 @@ def interest(card: Card, reader: Reader) -> tuple[float, list[str]]:
         elif learned > 0.15:
             reasons.append(f"you've been reading {taxonomy.label(topic)}")
 
+    # The reader's stack. The best match decides, not the sum: an article about Postgres
+    # and Rust is not twice as relevant to someone who writes both. A negative reading
+    # only counts when nothing they use is in there at all.
+    stack: list[tuple[float, str, bool]] = []
+    for tech in a.technologies:
+        explicit = config.STACK_INTEREST if tech in reader.technologies else 0.0
+        learned = reader.taste.get(f"tech:{tech}", 0.0) * config.TASTE_WEIGHT
+        stack.append((_clamp(explicit + learned), tech, bool(explicit)))
+    positive = [s for s in stack if s[0] > 0]
+    best = max(positive or stack, default=None, key=lambda s: abs(s[0]) if not positive else s[0])
+    stack_value = best[0] if best else 0.0
+    if best and best[2]:
+        reasons.append(f"you work with {taxonomy.label(best[1])}")
+    elif best and best[0] > 0.15:
+        reasons.append(f"you've been reading about {taxonomy.label(best[1])}")
+
     kind_taste = reader.taste.get(f"kind:{a.kind}", 0.0) * config.TASTE_WEIGHT
     domain_taste = reader.taste.get(f"domain:{card.domain}", 0.0) * config.TASTE_WEIGHT
     source_taste = max((reader.taste.get(f"source:{s}", 0.0) for s in card.sources), default=0.0)
     if domain_taste > 0.15:
         reasons.append(f"you often read {card.domain}")
 
-    total = _clamp(topic_value + 0.5 * kind_taste + 0.5 * domain_taste
+    total = _clamp(topic_value + stack_value + 0.5 * kind_taste + 0.5 * domain_taste
                    + 0.25 * source_taste * config.TASTE_WEIGHT)
     return round(total, 3), reasons
 
@@ -90,6 +106,9 @@ def exclusion(card: Card, reader: Reader) -> str | None:
         return f"you muted {taxonomy.label(muted[0])}"
     if a.kind in reader.muted_kinds:
         return f"you muted {taxonomy.label(a.kind)}"
+    muted_tech = [t for t in a.technologies if t in reader.muted_technologies]
+    if muted_tech:
+        return f"you muted {taxonomy.label(muted_tech[0])}"
     # Name the rule the reader set, not the subdomain it happened to catch.
     muted_domain = next((d for d in reader.muted_domains
                          if card.domain == d or card.domain.endswith("." + d)), None)

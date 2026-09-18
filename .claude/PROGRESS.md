@@ -3,8 +3,9 @@
 Living document. Update at the end of each working session.
 
 **Started:** 2026-09-08
-**Current phase:** v1 — multi-user
-**Status:** Phase 1-3 done, pipeline end-to-end chal raha hai
+**Current phase:** v2.1 — onboarding aur reader ka stack
+**Status:** v2 pipeline production mein green; onboarding + technology tags
+`feat/onboarding-and-stack` pe likhe hain, browser walkthrough baaki
 
 ---
 
@@ -64,6 +65,9 @@ Kya decide kiya aur **kyun** — taaki baad mein dobara na sochna pade.
 | 25 | v2 rebuild: article ek baar samjho, ranking har reader ke liye code mein (decisions 1, 21, 22 **superseded**) | v1 ka pipeline toota hua tha (0 verdicts kabhi likhe gaye) aur per-user LLM call free tier pe scale nahi karta. Ab: 5 sources (arXiv + GitHub add), article ka text fetch (42/48 ko title se zyada milta hai, v1 mein 5/20), ~4 batched model calls per run chahe kitne bhi readers hon, per-reader ranking `rank.py` mein, saves/votes/hides se taste seekhna, threads, search, lab page, status page, RSS, optional email. Schema additive migration hai — v1 tables chhue nahi. Poori detail `docs/ARCHITECTURE.md` mein |
 | 26 | Continuity code mein: reader ne jo story pehle save/like/padhi, uska naya article upar aata hai aur batata hai kiska follow-up hai | PRODUCT_VISION ka core bet "story thread over time" hai, par v2 mein thread sirf ek public page tha — reader ki apni history se koi jod nahi. Ab `rank.follow_ups` har thread ke liye sabse strong engagement chunta hai (save > like > open > shown); candidate ko +0.5 interest (`FOLLOW_UP_INTEREST`) aur `why` mein "Follows “X”, which you saved". Koi model call nahi, koi migration nahi — `components.follows` jsonb mein jaata hai, isliye email aur RSS ko bhi muft milta hai. Jis thread mein reader ne kuch down-vote ya hide kiya, usmein wapas nahi kheenchte |
 | 27 | Lab pe 30 din ka "liked or saved" % | Vision ka precision@k metric kahin dikhta hi nahi tha. Ab rakhe gaye articles mein se kitne khole, pasand/save kiye, ya hataye — reader ke apne rows se, RLS ke through. Target > 60% |
+| 28 | Article pe technology tags, fixed list + free-form, dono | Reader ka stack hi wo cheez hai jo edition ko "meri" banati hai; sirf 15 topics se "Postgres chalata hoon" nahi kehla sakta. Model ab har article pe 6 tak technologies deta hai: `taxonomy.json` ki ~140 ki list pehle, aur list se bahar ka naam bhi chalega — `taxonomy.technology_id` aliases fold karta hai (`k8s` → `kubernetes`) aur anjaan naam ko slug bana ke rakhta hai, taaki baar-baar dikhne wala tool usi id pe list mein promote ho jaaye. Ranking mein best match ginta hai, sum nahi (Postgres + Rust dono likhne wale ke liye article do guna relevant nahi hota). Purane analyses khaali array rakhte hain = koi signal nahi, mismatch nahi. Cost: output tokens thode zyada, ek additive migration |
+| 29 | Onboarding, aur uske saath site se ek model call (Rule 1 ka likha hua apvaad) | User ka goal: "they should be able to create their personalized feed, warna platform ka faayda hi kya". Isliye `/welcome`: role → depth → stack → topics → 150 shabd apne. Wo 150 shabd model padhta hai — site se, `web/src/lib/interpret.ts` (Gemini, peeche Groq), taxonomy ke against validate karke. Ye Rule 1 ("koi model call per user nahi") ko todta hai, par soch ke: call tab hoti hai jab reader text save karta hai, daily run pe kabhi nahi — 1000 readers = 1000 calls total, 1000/din nahi. Output suggestion hai, faisla nahi: chips dikhte hain jo reader hata sakta hai, aur dono provider fail ho jaayein to setup normally chalta rehta hai. Auth bhi theek kiya: Google/GitHub/Facebook (Apple $99/saal, isliye nahi), existing account pe saaf message, reset link hi akela email jo site bhejti hai. Facebook ke liye `/privacy` aur `/data-deletion` chahiye the — wo bane, aur unka waada sach karne ke liye account delete asli mein banaya (service key se, `auth.users` cascade sab personal rows le jaata hai) |
+| 30 | Day one pe "starter feed", khaali page nahi | Naya reader signup ke baad agli subah tak kuch padh hi nahi sakta tha — product ka sabse kharab moment, aur wahi pehla. Ab `db.starterOrder` pichhle 3 din ke analyzed articles uske mutes lagaa ke dikhata hai, matches pehle. Koi model call nahi, koi ranking ka dawa nahi: screen saaf likhta hai ki asli edition kal subah aayega. Actions se `agent editions` trigger karne ka option chhoda — ek aur secret, loading screen, aur token expire hone pe signup chup-chaap toot jaata |
 
 ---
 
@@ -81,6 +85,36 @@ _koi nahi_
 ---
 
 ## Session log
+
+### 2026-09-15 — UI aur user flow: stack tags + onboarding (decisions 28-30)
+Session ki shuruaat product ke review se hui (landing → sign in → public pages Chrome mein
+dekhe). Sabse badi dikkat styling nahi, flow thi: naya reader signup ke baad "your first
+edition is on its way" pe atak jaata tha, setup ka koi step hi nahi tha, aur settings 7
+section ka form tha. Branch `feat/onboarding-and-stack` (`rebuild/v2` se, kyunki PR #2 abhi
+merge nahi hua).
+
+Jo bana: technologies vocabulary (~140, aliases ke saath) taxonomy.json mein; model ab
+tag karta hai; `rank.py` mein stack interest (+0.5) aur muted technology exclusion;
+`taste.py` `tech:` keys seekhta hai; migration `20260916000000_stack.sql` (additive);
+`/welcome` 5-step onboarding; `interpret.ts` (site ki akeli model call); starter feed;
+`/privacy` + `/data-deletion`; asli account delete; settings mein stack aur "apne shabd".
+
+Verify: 91 Python tests, `tsc` + `eslint`, production build (21 routes), CI green on PR #3.
+Stack ranking fixture pe measure kiya — rust-tagged article stack khaali hone pe rank 3,
+`rust` declare karne pe rank 1 aur "You work with Rust; heavily discussed on GitHub;
+unusually deep".
+
+Poora setup path Chrome mein chala: user ka dev server `web/` ka lock roke baitha tha (aur
+har route pe 500 de raha tha), isliye `web/_preview` mein ek throwaway copy bana ke fixture
+mode mein 3100 pe chalaya — naya reader (`onboarded_at` null, koi edition nahi). Role presets,
+picker mein `k8s` → Kubernetes, ek asli `readInterests` call (9.6s: "Go with Postgres on
+Kubernetes" samjha, releases mute kiye), finish pe starter feed, phir settings/account.
+
+**Ek bug mila jo `tsc` aur `eslint` dono se nikal gaya:** `"use server"` file sirf async
+functions export kar sakti hai, aur `delete.ts` se `CONFIRM_PHRASE` export karne se
+`/settings/account` build-time pe toot gaya. Sirf page kholne ya build chalane se dikhta hai.
+Phrase ab `web/src/lib/account.ts` mein hai. Sabak: in do checks ke saath `next build` bhi
+chalana chahiye, kyunki ye class of bug wahi pakadta hai.
 
 ### 2026-09-15 — cron theek, v2 main pe
 Hafte bhar ke failed crons ki asli wajah mili: chaaron GitHub secrets ke shuru mein UTF-8

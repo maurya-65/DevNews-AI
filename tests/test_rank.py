@@ -14,12 +14,13 @@ def reader(**overrides):
     return Reader(**values)
 
 
-def card(article_id, *, topics=("systems",), kind="deep-dive", novelty=6.0, depth=6.0, impact=6.0,
-         audience="practitioner", confidence=0.8, is_cs=True, domain=None, sources=("hn",),
-         signal=0.3, hours_ago=2, thread_id=None):
+def card(article_id, *, topics=("systems",), technologies=(), kind="deep-dive", novelty=6.0,
+         depth=6.0, impact=6.0, audience="practitioner", confidence=0.8, is_cs=True, domain=None,
+         sources=("hn",), signal=0.3, hours_ago=2, thread_id=None):
     analysis = Analysis(article_id=article_id, is_cs=is_cs, kind=kind, topics=list(topics),
                         audience=audience, novelty=novelty, depth=depth, impact=impact,
-                        confidence=confidence, summary="s", takeaway=None, thread_id=thread_id)
+                        confidence=confidence, summary="s", takeaway=None,
+                        technologies=list(technologies), thread_id=thread_id)
     return Card(article_id=article_id, title=f"Article {article_id}",
                 url=f"https://site{article_id}.example/", domain=domain or f"site{article_id}.example",
                 first_seen_at=(NOW - timedelta(hours=hours_ago)).isoformat(), published_at=None,
@@ -61,6 +62,36 @@ def test_a_followed_topic_outranks_an_equal_article_on_another():
                                 reader(), set(), NOW)
     assert ranked[0].card.article_id == 2
     assert "Databases & storage" in ranked[0].why
+
+
+def test_an_article_about_your_stack_outranks_an_equal_one_that_is_not():
+    r = reader(topics=[], technologies=["rust"])
+    ranked = rank.build_edition([card(1, technologies=["java"]), card(2, technologies=["rust"])],
+                                r, set(), NOW)
+    assert ranked[0].card.article_id == 2
+    assert ranked[0].why.startswith("You work with Rust")
+
+
+def test_the_best_matching_technology_decides_rather_than_the_count():
+    r = reader(topics=[], technologies=["rust", "postgres"])
+    one = rank.score(card(1, technologies=["rust"]), r, NOW)
+    both = rank.score(card(2, technologies=["rust", "postgres"]), r, NOW)
+    assert both.components["interest"] == one.components["interest"]
+
+
+def test_a_muted_technology_is_excluded_however_good_it_is():
+    r = reader(muted_technologies=["crypto"], edition_size=10)
+    ranked = rank.build_edition([card(1, technologies=["crypto"], novelty=10, depth=10, impact=10)],
+                                r, set(), NOW)
+    assert selected(ranked) == []
+    assert ranked[0].excluded == "you muted crypto"
+
+
+def test_stack_taste_is_learned_as_well_as_declared():
+    article = card(1, technologies=["zig"])
+    plain = rank.score(article, reader(topics=[]), NOW).score
+    learned = rank.score(article, reader(topics=[], taste={"tech:zig": 0.9}), NOW).score
+    assert learned > plain
 
 
 def test_the_quality_bar_is_a_floor_not_a_target():

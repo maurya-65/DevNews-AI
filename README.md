@@ -4,16 +4,20 @@ The few computer-science stories worth your time today, chosen for you.
 
 Every morning DevNews reads ~70 links from Hacker News, Lobsters, engineering blogs, arXiv
 and GitHub, fetches the articles themselves, and has a model read each one **once** —
-summary, takeaway, kind, topics, and honest scores for novelty, depth and impact. Then it
-ranks them **in code, separately for every reader**: by quality at their reading level,
-the topics they follow, what they have saved, voted on and hidden, how much the community
-reacted, and freshness. A thin day gets a short edition. A day where nothing clears your
-bar gets an empty one, and says so.
+summary, takeaway, kind, topics, the technologies it is built on, and honest scores for
+novelty, depth and impact. Then it ranks them **in code, separately for every reader**: by
+quality at their reading level, the topics they follow, the tools they work with, what they
+have saved, voted on and hidden, how much the community reacted, and freshness. A thin day
+gets a short edition. A day where nothing clears your bar gets an empty one, and says so.
 
 Everything runs on free tiers. Adding readers adds no model calls.
 
 ## What's in it
 
+- **Setup** — role, reading depth, your stack, your topics, and 150 words in your own
+  words that DevNews reads once and turns into the rest. Until your first morning run, a
+  starter feed of real articles filtered to what you said, honestly labelled as not yet
+  being your edition.
 - **Today** — your edition, with why each story is there, keyboard navigation
   (`j`/`k`, `o`, `s`, `u`/`d`, `x`), save and more/less-like-this.
 - **Threads** — stories that develop over days, linked automatically once a second
@@ -48,7 +52,7 @@ Requirements: Python 3.12, Node 24, a Supabase project, and a free Gemini and/or
 # once
 python -m venv .venv && .venv/Scripts/pip install -r requirements.txt   # or .venv/bin/pip
 cp .env.example .env                    # fill in keys; see comments inside
-# apply supabase/migrations/20260915000000_v2.sql in the Supabase SQL editor
+# apply the migrations in supabase/migrations/ in order, in the Supabase SQL editor
 cd web && npm ci && cp ../.env.example .env.local   # keep the web section
 
 # pipeline
