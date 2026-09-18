@@ -99,10 +99,22 @@ tag karta hai; `rank.py` mein stack interest (+0.5) aur muted technology exclusi
 `/welcome` 5-step onboarding; `interpret.ts` (site ki akeli model call); starter feed;
 `/privacy` + `/data-deletion`; asli account delete; settings mein stack aur "apne shabd".
 
-Verify: 91 Python tests, `tsc` + `eslint` clean. Stack ranking fixture pe measure kiya —
-rust-tagged article stack khaali hone pe rank 3, `rust` declare karne pe rank 1 aur
-"You work with Rust; heavily discussed on GitHub; unusually deep". Browser walkthrough
-abhi baaki hai (user ka dev server port 3000 pe 500 de raha tha aur lock rok raha tha).
+Verify: 91 Python tests, `tsc` + `eslint`, production build (21 routes), CI green on PR #3.
+Stack ranking fixture pe measure kiya — rust-tagged article stack khaali hone pe rank 3,
+`rust` declare karne pe rank 1 aur "You work with Rust; heavily discussed on GitHub;
+unusually deep".
+
+Poora setup path Chrome mein chala: user ka dev server `web/` ka lock roke baitha tha (aur
+har route pe 500 de raha tha), isliye `web/_preview` mein ek throwaway copy bana ke fixture
+mode mein 3100 pe chalaya — naya reader (`onboarded_at` null, koi edition nahi). Role presets,
+picker mein `k8s` → Kubernetes, ek asli `readInterests` call (9.6s: "Go with Postgres on
+Kubernetes" samjha, releases mute kiye), finish pe starter feed, phir settings/account.
+
+**Ek bug mila jo `tsc` aur `eslint` dono se nikal gaya:** `"use server"` file sirf async
+functions export kar sakti hai, aur `delete.ts` se `CONFIRM_PHRASE` export karne se
+`/settings/account` build-time pe toot gaya. Sirf page kholne ya build chalane se dikhta hai.
+Phrase ab `web/src/lib/account.ts` mein hai. Sabak: in do checks ke saath `next build` bhi
+chalana chahiye, kyunki ye class of bug wahi pakadta hai.
 
 ### 2026-09-15 — cron theek, v2 main pe
 Hafte bhar ke failed crons ki asli wajah mili: chaaron GitHub secrets ke shuru mein UTF-8

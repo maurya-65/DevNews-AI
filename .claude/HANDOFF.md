@@ -11,7 +11,8 @@ fails. The site is built and checked but not yet deployed â€” that needs a Verce
 
 ## In flight: onboarding and the reader's stack (decisions 28-30)
 
-Uncommitted work on `feat/onboarding-and-stack`:
+Commit `738b0ec` on `feat/onboarding-and-stack`, pushed. **PR #3** into `rebuild/v2` is open
+with both checks green. It is stacked on PR #2, so merge that one first.
 
 - **Technologies.** ~140 ids with aliases in `taxonomy.json`; the model tags up to six per
   article and may name something off-list, which survives as a slug. Ranking adds a stack
@@ -52,10 +53,21 @@ call is made per user. See `README.md` and `docs/ARCHITECTURE.md`; decisions 25â
 - Public pages (landing, status, search) against production in Chrome, no console errors.
 - `web`: `tsc`, `eslint` and `next build` clean; all 18 routes build. `ci.yml` green.
 
-- **The new work:** 91 Python tests pass, `tsc` and `eslint` clean. Stack ranking measured on
-  a fixture copy with no model calls: the Rust-tagged article sits at rank 3 with an empty
-  stack and at rank 1 with `rust` declared, its `why` reading "You work with Rust; heavily
-  discussed on GitHub; unusually deep". The Java-tagged control does not move.
+- **The new work:** 91 Python tests, `tsc`, `eslint`, and a production build of all 21 routes.
+  CI green on PR #3 (run 35378444779, both jobs). Stack ranking measured on a fixture copy with
+  no model calls: the Rust-tagged article sits at rank 3 with an empty stack and at rank 1 with
+  `rust` declared, its `why` reading "You work with Rust; heavily discussed on GitHub; unusually
+  deep". The Java-tagged control does not move.
+- **The setup path, clicked through in Chrome** against a brand-new-reader fixture: role presets,
+  `k8s` folding to Kubernetes in the picker, one real `readInterests` call (9.6s, understood "Go
+  with Postgres on Kubernetes" and muted releases), the starter feed on finishing, and the
+  settings and account screens afterwards.
+- **`interpret.ts` against a real key.** The Gemini REST call works and the returned ids validate
+  against the taxonomy. The Groq fallback path has still never been exercised.
+- One bug this found: a `"use server"` file may only export async functions, so the confirmation
+  phrase exported from `delete.ts` broke `/settings/account` at build time. Neither `tsc` nor
+  `eslint` catches it â€” only opening the page or running a build does. The phrase now lives in
+  `web/src/lib/account.ts`.
 
 ## Not yet verified
 
@@ -66,14 +78,13 @@ call is made per user. See `README.md` and `docs/ARCHITECTURE.md`; decisions 25â
   (8 hints are waiting).
 - Email: needs `RESEND_API_KEY` + `EMAIL_FROM`.
 
-- **Onboarding in a browser.** Nobody has clicked through `/welcome` yet: a dev server was
-  already holding the lock on `web/` (and returning 500s) for the whole session. A fixture
-  file for a brand-new reader is ready in the session scratchpad
-  (`state-onboarding.json`: no `onboarded_at`, no editions) â€” run
-  `DEVNEWS_FIXTURES=1 DEVNEWS_FIXTURES_FILE=<that file> npm run dev`.
-- **`interpret.ts` against a real key.** The Gemini and Groq REST calls have never run; the
-  pipeline's equivalents use the SDKs, so the request shapes here are new code.
-- **Account deletion.** Written and type-checked, never executed against Supabase.
+- **Account deletion.** Written, built and rendered, never executed against Supabase. It is the
+  one path here that cannot be undone, so the first run of it is worth doing on a throwaway
+  account.
+- **Anything against the real database.** The whole walkthrough was fixture mode; the new profile
+  columns do not exist in Supabase until the migration is applied.
+- **The morning cron is still failing on `main`** (16, 17 and 18 September, ~17s each) because
+  `main` is still v1. Merging PR #2 is what fixes that, and it matters more than anything in #3.
 
 ## Next
 
